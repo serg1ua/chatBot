@@ -1,0 +1,29 @@
+{
+  "name": "chatbot",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "start": "npm run prod",
+    "prod": "NODE_ENV=production node bot.js",
+    "dev": "DEBUG=chatbot:server npm run dev-server",
+    "dev-server": "NODE_ENV=development nodemon bot.js"
+  },
+  "dependencies": {
+    "botkit": "^0.7.4",
+    "cookie-parser": "~1.4.3",
+    "debug": "^2.6.9",
+    "dotenv": "^7.0.0",
+    "ejs": "^2.6.1",
+    "express": "~4.16.0",
+    "http-errors": "~1.6.2",
+    "morgan": "~1.9.0",
+    "request": "^2.88.0"
+  },
+  "devDependencies": {
+    "nodemon": "^1.18.10"
+  },
+  "engines": {
+    "node": "10.14.1",
+    "npm": "6.6.0"
+  }
+}
