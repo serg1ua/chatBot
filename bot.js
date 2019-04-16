@@ -35,7 +35,4 @@ require('./app/controllers/subscribe_events')(controller);
 require('./app/controllers/bot_setup')(controller);
 
 // Routes setup
-var normalizedPath = require("path").join(__dirname, "app/handlers");
-require("fs").readdirSync(normalizedPath).forEach(function (file) {
-  require("./app/handlers/" + file)(controller);
-});
+require('./app/handlers/bot_handler')(controller);
