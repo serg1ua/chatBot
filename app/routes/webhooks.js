@@ -3,7 +3,8 @@ require('dotenv').config();
 
 function webhooks(app, controller) {
 
-  app.get('/webhook', function (req, res) {
+  app.get('/webhook', (req, res) => {
+    console.log('WEBHOOK_VERIFIED');
     if (req.query['hub.mode'] == 'subscribe') {
       if (req.query['hub.verify_token'] == process.env.VERIFY_TOKEN) {
         console.log('WEBHOOK_VERIFIED');
@@ -15,8 +16,7 @@ function webhooks(app, controller) {
     }
   });
 
-  app.post('/webhook', function (req, res) {
-    // Now, pass the webhook into be processed
+  app.post('/webhook', (req, res) => {
     var bot = controller.spawn({});
     controller.handleWebhookPayload(req, res, bot);
     res.status(200).send('ok');

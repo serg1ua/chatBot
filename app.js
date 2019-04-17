@@ -4,7 +4,7 @@ var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 require('dotenv').config();
 
-// var webhooks = require('./app/routes/webhooks');
+var test = require('./app/route');
 
 function webserver(controller) {
 
@@ -22,8 +22,8 @@ function webserver(controller) {
   app.set('views', path.join(__dirname, 'views'));
   app.set('view engine', 'ejs');
 
-  // // Setting webhook route
-  // app.use('/', webhooks)(app, controller);
+  // test
+  app.use('/', test);
 
   var listener = app.listen(process.env.PORT || '3000', function () {
     console.log('Your app is listening on port ' + listener.address().port);

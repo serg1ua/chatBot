@@ -12,7 +12,7 @@ function subscribe(controller) {
         console.log('Botkit can now receive messages');
 
         // start ticking to send conversation messages
-        controller.startTicking(console.log('Teaking'));
+        controller.startTicking();
       }
     });
 }
