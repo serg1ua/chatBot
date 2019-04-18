@@ -16,8 +16,28 @@ function botSetup(controller) {
         "type": "nested",
         "call_to_actions": [{
             "title": "ГЛАВНОЕ МЕНЮ",
-            "type": "postback",
-            "payload": "main_menue"
+            "type": "nested",
+            "call_to_actions": [{
+                "title": "В магазин",
+                "type": "postback",
+                "payload": "show_products"
+              },
+              {
+                "title": "Мои покупки",
+                "type": "postback",
+                "payload": "my_purchases"
+              },
+              {
+                "title": "Избранные",
+                "type": "postback",
+                "payload": "favorite"
+              },
+              {
+                "title": "Пригласить друга",
+                "type": "postback",
+                "payload": "send_invite"
+              }
+            ]
           },
           {
             "title": "КАТАЛОГ ТОВАРОВ",

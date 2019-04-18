@@ -14,10 +14,18 @@ function botHandlers(controller) {
   // Handles \'Каталог товаров \' menue button
   controller.hears(process.env.SHOW_CATALOG, 'facebook_postback', async(bot, message) => {
     var catalog = await bestBuy.getCatalog();
-    console.log('ASYNC ', catalog);
     bot.reply(message, {
       text: 'Каталог товаров',
       quick_replies: getCatalogNames(catalog.categories)
+    });
+  });
+
+  // Handles \'В магазин\' menue button
+  controller.hears(process.env.SHOW_PRODUCTS, 'facebook_postback', async(bot, message) => {
+    var collection = await bestBuy.getProducts();
+    bot.reply(message, {
+      text: 'Наименование товаров',
+      quick_replies: getCatalogNames(collection.products)
     });
   });
 }
