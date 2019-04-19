@@ -4,27 +4,38 @@ var bestBuy = new BestBuy();
 
 function botHandlers(controller) {
 
-  // Handles all messages
-  controller.hears('(.*)', 'message_received', function (bot, message) {
+  // Handles "\Get Started & Main menue\" buttons
+  controller.hears([process.env.FIRST_VISIT, process.env.MAIN_MENUE], 'facebook_postback', (bot, message) => {
     bot.reply(message, {
-      text: 'Пожалуйста используйте кнопку меню \'Каталог товаров\'',
+      text: 'Hi! Nice to see you!',
+      quick_replies: greetingMenue()
     });
   });
 
-  // Handles \'Каталог товаров \' menue button
-  controller.hears(process.env.SHOW_CATALOG, 'facebook_postback', async(bot, message) => {
+  // Handles all messages
+  controller.hears('(.*)', 'message_received', async(bot, message) => {
+    var collection = await bestBuy.getProducts();
+    bot.reply(message, {
+      text: 'Show products',
+      quick_replies: getCatalogNames(collection.products)
+    });
+  });
+
+  // Handles \'Send catalogue\' button
+  controller.hears(process.env.SHOW_CATALOGUE, 'facebook_postback', async(bot, message) => {
     var catalog = await bestBuy.getCatalog();
     bot.reply(message, {
-      text: 'Каталог товаров',
+      text: 'Send catalogue',
       quick_replies: getCatalogNames(catalog.categories)
     });
   });
 
-  // Handles \'В магазин\' menue button
+
+  // Handles \'Shop\' button
   controller.hears(process.env.SHOW_PRODUCTS, 'facebook_postback', async(bot, message) => {
     var collection = await bestBuy.getProducts();
     bot.reply(message, {
-      text: 'Наименование товаров',
+      text: 'Show products',
       quick_replies: getCatalogNames(collection.products)
     });
   });
@@ -41,6 +52,31 @@ function getCatalogNames(data) {
     names.push(content);
   });
   return names;
+}
+
+function greetingMenue() {
+  var greeteng = [{
+      "content_type": "text",
+      "title": "My purchases",
+      "payload": "my_purchases",
+    },
+    {
+      "content_type": "text",
+      "title": "Shop",
+      "payload": "show_products",
+    },
+    {
+      "content_type": "text",
+      'title': 'Favourites',
+      'payload': 'favourites'
+    },
+    {
+      'content_type': 'text',
+      'title': 'Invite a friend',
+      'payload': 'invite'
+    }
+  ]
+  return greeteng;
 }
 
 module.exports = botHandlers;
