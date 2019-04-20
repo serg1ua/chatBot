@@ -15,9 +15,18 @@ function botHandlers(controller) {
   // Handles all messages
   controller.hears('(.*)', 'message_received', async(bot, message) => {
     var collection = await bestBuy.getProducts();
-    bot.reply(message, {
-      text: 'Show products',
-      quick_replies: getCatalogNames(collection.products)
+    bot.startConversation(message, function (err, convo) {
+      convo.ask({
+        attachment: {
+          'type': 'template',
+          'payload': {
+            'template_type': 'generic',
+            'elements': createProductsGalery(collection.products)
+          }
+        }
+      })
+    }, function (response, convo) {
+      convo.next();
     });
   });
 
@@ -34,6 +43,7 @@ function botHandlers(controller) {
   // Handles \'Shop\' button
   controller.hears(process.env.SHOW_PRODUCTS, 'facebook_postback', async(bot, message) => {
     var collection = await bestBuy.getProducts();
+    console.log('SHOP facebook_postback');
     bot.reply(message, {
       text: 'Show products',
       quick_replies: getCatalogNames(collection.products)
@@ -77,6 +87,36 @@ function greetingMenue() {
     }
   ]
   return greeteng;
+}
+
+
+function createProductsGalery(data) {
+  let elements = [];
+  data.forEach(item => {
+    var content = {
+      'title': item.name,
+      'image_url': item.images[0].href,
+      'subtitle': item.plot,
+      'buttons': [{
+          'type': 'postback',
+          'title': 'LIKE',
+          'payload': 'like'
+        },
+        {
+          'type': 'postback',
+          'title': 'BUY',
+          'payload': 'buy'
+        },
+        // {
+        // 'type': 'web_url',
+        // 'url': 'https://petersapparel.parseapp.com/view_item?item_id=101',
+        // 'title': 'View Item'
+        // }
+      ]
+    };
+    elements.push(content);
+  });
+  return elements;
 }
 
 module.exports = botHandlers;

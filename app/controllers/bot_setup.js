@@ -1,7 +1,7 @@
 function botSetup(controller) {
 
   // Setup greeting message
-  controller.api.thread_settings.greeting('Welcome!');
+  controller.api.thread_settings.greeting('Welcome to our place!');
 
   // Setup get_started payload
   controller.api.thread_settings.get_started(process.env.FIRST_VISIT);
