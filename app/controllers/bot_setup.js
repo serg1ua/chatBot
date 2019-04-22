@@ -12,9 +12,9 @@ function botSetup(controller) {
       "locale": "default",
       "composer_input_disabled": false,
       "call_to_actions": [{
-          "title": "Main menue",
+          "title": "Main menu",
           "type": "postback",
-          "payload": "main_menue"
+          "payload": "main_menu"
         },
         {
           "title": "Send catalogue",

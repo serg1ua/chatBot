@@ -1,16 +1,13 @@
 // BestBuy API handler
 
-var rp = require('request-promise');
+const bby = require('bestbuy')(process.env.BEST_BUY_API_KEY);
 require('dotenv').config();
-
-var catalogURI = "https://api.bestbuy.com/v1/categories?format=json&show=all&apiKey=" + process.env.BEST_BUY_API_KEY;
-var productsURI = "https://api.bestbuy.com/v1/products?format=json&show=all&apiKey=" + process.env.BEST_BUY_API_KEY;
 
 function BestBuy() {
 
   // Fetch categories catalog
   this.getCatalog = () => new Promise((resolve, reject) => {
-    rp(getCatalogOpts(catalogURI))
+    bby.categories('', { show: 'all' })
       .then(data => {
         resolve(data);
         reject({ error: 'error' });
@@ -19,24 +16,21 @@ function BestBuy() {
 
   // Fetch products
   this.getProducts = () => new Promise((resolve, reject) => {
-    rp(getCatalogOpts(productsURI))
+    bby.products('', { show: 'all' })
       .then(data => {
         resolve(data);
         reject({ error: 'error' });
       });
   });
-}
 
-// Mastering opts for catalog
-function getCatalogOpts(uri) {
-  var opts = {
-    uri: uri,
-    headers: {
-      'User-Agent': 'Request-Promise'
-    },
-    json: true
-  };
-  return opts;
+  // Fetch products from catalog
+  this.getProductsFromCatalog = (abcat) => new Promise((resolve, reject) => {
+    bby.products(`categoryPath.id=${abcat}`, { show: 'all' })
+      .then(data => {
+        resolve(data);
+        reject({ error: 'error' });
+      });
+  });
 }
 
 module.exports = BestBuy;
