@@ -1,15 +1,23 @@
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const express = require('express');
+const mongoose = require('mongoose');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
 require('dotenv').config();
 
-var test = require('./app/route');
+const test = require('./app/route');
+
+mongoose.connect(process.env.MONGO_DB_URI, { useNewUrlParser: true });
+const db = mongoose.connection;
+db.on('error', console.error.bind(this, 'connection error:'));
+db.once('open', function () {
+  console.log('successfully connected to DB');
+});
 
 function webserver(controller) {
 
   // Create express server
-  var app = express();
+  const app = express();
 
   // Seting middleware
   app.use(logger('dev'));
@@ -25,12 +33,12 @@ function webserver(controller) {
   // test
   app.use('/', test);
 
-  var listener = app.listen(process.env.PORT || '3000', function () {
+  const listener = app.listen(process.env.PORT || '3000', function () {
     console.log('Your app is listening on port ' + listener.address().port);
   });
 
   // import all the pre-defined routes that are present in /components/routes
-  var normalizedPath = require("path").join(__dirname, "app/routes");
+  const normalizedPath = require("path").join(__dirname, "app/routes");
   require("fs").readdirSync(normalizedPath).forEach(function (file) {
     require('./app/routes/' + file)(app, controller);
   });
