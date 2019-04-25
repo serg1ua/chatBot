@@ -1,5 +1,5 @@
-var Botkit = require('botkit');
-var request = require('request');
+const Botkit = require('botkit');
+const request = require('request');
 require('dotenv').config();
 
 // Check access & verify tokens
@@ -16,17 +16,19 @@ if (!process.env.VERIFY_TOKEN) {
 }
 
 // Bot creating
-var controller = Botkit.facebookbot({
+const controller = Botkit.facebookbot({
   debug: true,
+  receive_via_postback: true,
+  require_delivery: true,
   access_token: process.env.ACCESS_TOKEN,
   verify_token: process.env.VERIFY_TOKEN,
   // storage: db
 });
 
-var bot = controller.spawn({});
+const bot = controller.spawn({});
 
 // Set up an Express-powered webserver
-var webserver = require('./app.js')(controller);
+const webserver = require('./app.js')(controller);
 
 // Subscribe events
 require('./app/controllers/subscribe_events')(controller);
