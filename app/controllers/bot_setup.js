@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 function botSetup(controller) {
 
   // Setup greeting message
@@ -14,12 +16,12 @@ function botSetup(controller) {
       "call_to_actions": [{
           "title": "Main menu",
           "type": "postback",
-          "payload": "main_menu"
+          "payload": process.env.FIRST_VISIT
         },
         {
           "title": "Send catalogue",
           "type": "postback",
-          "payload": "show_catalogue"
+          "payload": process.env.SHOW_CATALOGUE
         }
       ]
     }]

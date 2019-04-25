@@ -10,7 +10,7 @@ const test = require('./app/route');
 mongoose.connect(process.env.MONGO_DB_URI, { useNewUrlParser: true });
 const db = mongoose.connection;
 db.on('error', console.error.bind(this, 'connection error:'));
-db.once('open', function () {
+db.once('open', () => {
   console.log('successfully connected to DB');
 });
 
@@ -33,13 +33,13 @@ function webserver(controller) {
   // test
   app.use('/', test);
 
-  const listener = app.listen(process.env.PORT || '3000', function () {
+  const listener = app.listen(process.env.PORT || 3000, () => {
     console.log('Your app is listening on port ' + listener.address().port);
   });
 
   // import all the pre-defined routes that are present in /components/routes
   const normalizedPath = require("path").join(__dirname, "app/routes");
-  require("fs").readdirSync(normalizedPath).forEach(function (file) {
+  require("fs").readdirSync(normalizedPath).forEach(file => {
     require('./app/routes/' + file)(app, controller);
   });
 
