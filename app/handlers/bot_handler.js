@@ -4,16 +4,24 @@ const bestBuy = new BestBuy();
 const DB = require('./db_handler');
 const db = new DB();
 
-var product = {};
+const product = {};
 
 module.exports = (controller) => {
 
   // Handles "\Get Started & Main menue\" buttons
   controller.hears(process.env.FIRST_VISIT, 'facebook_postback', (bot, message) => {
-    console.log(message);
     bot.reply(message, {
       text: 'Hi! Nice to see you!',
       quick_replies: greetingMenue()
+    });
+  });
+
+  // Handles \'Send catalogue\' button
+  controller.hears(process.env.SHOW_CATALOGUE, 'facebook_postback', async(bot, message) => {
+    let catalog = await bestBuy.getCatalog();
+    bot.reply(message, {
+      text: 'Send catalogue',
+      quick_replies: getCatalogNames(catalog.categories)
     });
   });
 
@@ -67,101 +75,94 @@ module.exports = (controller) => {
     }
   });
 
-  // Handles \'Send catalogue\' button
-  controller.hears(process.env.SHOW_CATALOGUE, 'facebook_postback', async(bot, message) => {
-    let catalog = await bestBuy.getCatalog();
-    bot.reply(message, {
-      text: 'Send catalogue',
-      quick_replies: getCatalogNames(catalog.categories)
-    });
-  });
-
-
-  // Handles \'Shop\' button
+  // Handles '*'
   controller.hears('(.*)', 'message_received', async(bot, message) => {
-    if (message.quick_reply && message.quick_reply.payload.startsWith('product_in_purchased?=')) {
-      const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
-      console.log(responseProduct);
-      bot.startConversation(message, (err, convo) => {
-        convo.ask({
-          attachment: {
-            'type': 'template',
-            'payload': {
-              'template_type': 'generic',
-              'elements': createProductsGalery([responseProduct], true)
+    if (message.quick_reply) {
+      if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
+        const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
+        bot.startConversation(message, (err, convo) => {
+          convo.ask({
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': createProductsGalery([responseProduct], true)
+              }
             }
-          }
+          });
+        }, (response, convo) => {
+          convo.next();
         });
-      }, (response, convo) => {
-        convo.next();
-      });
-    }
-    if (message.quick_reply && message.quick_reply.payload.startsWith('category?=')) {
-      let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
-      bot.startConversation(message, function (err, convo) {
-        convo.ask({
-          attachment: {
-            'type': 'template',
-            'payload': {
-              'template_type': 'generic',
-              'elements': createProductsGalery(products.products, false)
-            }
-          }
-        });
-      }, (response, convo) => {
-        convo.next();
-      });
-    }
-    else if (message.postback && message.postback.payload.startsWith('favorite=')) {
-      const userId = message.sender.id;
-      const item = message.postback.payload.replace('favorite=', '');
-      let favorite = await db.checkFavorite(item);
-      if (!favorite) {
-        favorite = await db.addNewFavorite(userId, item, message.timestamp);
       }
-      if (favorite) {
-        bot.reply(message, {
-          'text': 'Added to favorites',
-          'quick_replies': [{
-            'content_type': 'text',
-            'title': 'Show favorites',
-            'payload': 'favorites'
-          }]
+      else if (message.quick_reply.payload.startsWith('category?=')) {
+        let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
+        bot.startConversation(message, function (err, convo) {
+          convo.ask({
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': createProductsGalery(products.products, false)
+              }
+            }
+          });
+        }, (response, convo) => {
+          convo.next();
         });
       }
     }
-    else if (message.postback && message.postback.payload.startsWith('product?=')) {
-      const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
-      product.sku = responseProduct.sku;
-      product.userId = message.sender.id;
-      bot.startConversation(message, (err, convo) => {
-        convo.ask({
-          attachment: {
-            'type': 'template',
-            'payload': {
-              'template_type': 'generic',
-              'elements': createProductsGalery([responseProduct], false)
+    if (message.postback) {
+      if (message.postback.payload.startsWith('favorite=')) {
+        const userId = message.sender.id;
+        const item = message.postback.payload.replace('favorite=', '');
+        let favorite = await db.checkFavorite(item);
+        if (!favorite) {
+          favorite = await db.addNewFavorite(userId, item, message.timestamp);
+        }
+        if (favorite) {
+          bot.reply(message, {
+            'text': 'Added to favorites',
+            'quick_replies': [{
+              'content_type': 'text',
+              'title': 'Show favorites',
+              'payload': 'favorites'
+            }]
+          });
+        }
+      }
+      else if (message.postback.payload.startsWith('product?=')) {
+        const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
+        product.sku = responseProduct.sku;
+        product.userId = message.sender.id;
+        bot.startConversation(message, (err, convo) => {
+          convo.ask({
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': createProductsGalery([responseProduct], false)
+              }
             }
-          }
+          });
+        }, (response, convo) => {
+          convo.next();
         });
-      }, (response, convo) => {
-        convo.next();
-      });
-    }
-    if (message.postback && message.postback.payload === process.env.SHARE_NUMBER) {
-      bot.startConversation(message, (err, convo) => {
-        convo.ask({
-          'text': 'Share your phone number',
-          'quick_replies': [{
-            'content_type': 'user_phone_number'
-          }],
-          'payload': 'user_phone'
+      }
+      else if (message.postback.payload === process.env.SHARE_NUMBER) {
+        bot.startConversation(message, (err, convo) => {
+          convo.ask({
+            'text': 'Share your phone number',
+            'quick_replies': [{
+              'content_type': 'user_phone_number'
+            }],
+            'payload': 'user_phone'
+          });
+        }, (response, convo) => {
+          convo.next();
         });
-      }, (response, convo) => {
-        convo.next();
-      });
+      }
     }
-    else if (message.nlp && message.nlp.entities && message.nlp.entities.phone_number && message.nlp.entities.phone_number) {
+    if (message.nlp && message.nlp.entities && message.nlp.entities.phone_number) {
       // console.log(phoneRegexp.test(message.test));
       console.log(message);
       product.phone = message.text;
@@ -180,6 +181,10 @@ module.exports = (controller) => {
             self.coordinates = response.attachments[0].payload.coordinates;
             self.timestamp = response.timestamp;
             let savePurchase = await db.savePurchase(product);
+            if (savePurchase) {
+              convo.say('Thank you for your purchase, it will be delivered within 2 days');
+              convo.next();
+            }
           }
           else {
             convo.next();
@@ -192,7 +197,7 @@ module.exports = (controller) => {
   });
 };
 
-
+///// Helper functions //////
 function greetingMenue() {
   let greeteng = [{
       "content_type": "text",
@@ -218,7 +223,6 @@ function greetingMenue() {
   return greeteng;
 }
 
-
 function getCatalogNames(data) {
   let names = [];
   data.forEach(item => {
@@ -231,7 +235,6 @@ function getCatalogNames(data) {
   });
   return names;
 }
-
 
 function createProductsGalery(data, marker) {
   let elements = [];
@@ -298,9 +301,9 @@ function createProductsButtons(data, item, marker) {
       },
       {
         'type': 'postback',
-        'title': 'Return',
-        'payload': 'my_purchases'
+        'title': 'Main menue',
+        'payload': process.env.FIRST_VISIT
       }
-    ]
+    ];
   }
 }
