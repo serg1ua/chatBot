@@ -26,7 +26,7 @@ class DB {
 
   // Fetch list of favoretes from DB
   getFavorites(userId) {
-    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).exec();
+    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10).exec();
   }
 
   // Save purchased
@@ -43,8 +43,9 @@ class DB {
 
   // Fetch purchases
   getPurchases(userId) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).exec();
+    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10).exec();
   }
 }
 
 module.exports = DB;
+// exec()

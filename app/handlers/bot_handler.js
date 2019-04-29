@@ -4,7 +4,12 @@ const bestBuy = new BestBuy();
 const DB = require('./db_handler');
 const db = new DB();
 
-const product = {};
+// Global bot_handler config variable
+const BOT_CONFIG = {
+  product: {},
+  catalogPageNumber: 1,
+  productsPageNumber: 0
+};
 
 module.exports = (controller) => {
 
@@ -18,42 +23,32 @@ module.exports = (controller) => {
 
   // Handles \'Send catalogue\' button
   controller.hears(process.env.SHOW_CATALOGUE, 'facebook_postback', async(bot, message) => {
-    let catalog = await bestBuy.getCatalog();
-    bot.reply(message, {
-      text: 'Send catalogue',
-      quick_replies: getCatalogNames(catalog.categories)
-    });
+    let catalog = await bestBuy.getCatalog(1);
+    if (!catalog.categories.length) {
+      bot.reply(message, {
+        text: 'There are no categories in this catalogue',
+      });
+    }
+    else {
+      bot.reply(message, {
+        text: 'Send catalogue',
+        quick_replies: getCatalogNames(catalog.categories, BOT_CONFIG.catalogPageNumber)
+      });
+    }
   });
 
   // Handles \'My purchases\', \'Shop\', \'Favorites\', \'Invite a friend\' messages
-  controller.hears(['My purchases', 'Shop', 'Favorites', 'Invite a friend'], 'message_received', async(bot, message) => {
-    console.log(message.quick_reply);
-    switch (message.quick_reply.payload) {
-    case 'my_purchases':
+  controller.hears(['My purchases', 'Shop', 'Favorites', 'Invite a friend', 'Next >>>', '<<< Prev'], 'message_received', async(bot, message) => {
+    let arg = message.quick_reply.payload;
+    if (arg === 'my_purchases') {
       const purchases = await db.getPurchases(message.sender.id);
       console.log(purchases);
       bot.reply(message, {
         text: 'Purchases list',
-        quick_replies: getCatalogNames(purchases)
+        quick_replies: getMyPurchases(purchases)
       });
-      break;
-    case 'show_products':
-      let collection = await bestBuy.getProducts();
-      bot.startConversation(message, function (err, convo) {
-        convo.ask({
-          attachment: {
-            'type': 'template',
-            'payload': {
-              'template_type': 'generic',
-              'elements': createProductsGalery(collection.products)
-            }
-          }
-        });
-      }, (response, convo) => {
-        convo.next();
-      });
-      break;
-    case 'favorites':
+    }
+    else if (arg === 'favorites') {
       const list = await db.getFavorites(message.sender.id);
       bot.startConversation(message, (err, convo) => {
         convo.say({
@@ -68,16 +63,62 @@ module.exports = (controller) => {
       }, (response, convo) => {
         convo.next();
       });
-      break;
-    case 'invite':
+    }
+    else if (arg === 'invite') {
       bot.reply(message, 'Invite a friend');
-      break;
+    }
+    else if (arg.startsWith('show_products&page?=')) {
+      BOT_CONFIG.productsPageNumber = arg.replace('show_products&page?=', '') === '-1' ? --BOT_CONFIG.productsPageNumber : ++BOT_CONFIG.productsPageNumber;
+      BOT_CONFIG.productsPageNumber = !BOT_CONFIG.productsPageNumber ? 1 : BOT_CONFIG.productsPageNumber;
+      let collection = await bestBuy.getProducts(BOT_CONFIG.productsPageNumber);
+      if (!collection.products.length) {
+        bot.reply(message, {
+          text: 'There are no products in this collection',
+        });
+      }
+      else {
+        bot.startConversation(message, (err, convo) => {
+          convo.ask({
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': createProductsGalery(collection.products, false)
+              }
+            }
+          });
+          setTimeout(() => {
+            bot.reply(message, {
+              text: 'Navigate through list of products',
+              quick_replies: [{
+                  "content_type": "text",
+                  "title": "<<< Prev",
+                  "payload": `show_products&page?=-1`
+                },
+                {
+                  "content_type": "text",
+                  "title": "Next >>>",
+                  "payload": `show_products&page?=1`
+                }
+              ]
+            });
+          }, 3500);
+        }, (response, convo) => {
+          convo.next();
+        });
+      }
     }
   });
 
   // Handles '*'
   controller.hears('(.*)', 'message_received', async(bot, message) => {
-    if (message.quick_reply) {
+    console.log(message);
+    if (!message.quick_reply && !message.postback && !message.attachments) {
+      bot.reply(message, message.text);
+      let products = await bestBuy.getProductsFromCatalog(message.text);
+      console.log(products.products);
+    }
+    else if (message.quick_reply) {
       if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
         bot.startConversation(message, (err, convo) => {
@@ -96,19 +137,41 @@ module.exports = (controller) => {
       }
       else if (message.quick_reply.payload.startsWith('category?=')) {
         let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
-        bot.startConversation(message, function (err, convo) {
-          convo.ask({
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': createProductsGalery(products.products, false)
-              }
-            }
+        if (!products.products.length) {
+          bot.reply(message, {
+            text: 'This catalog is currently empty, pllease try another',
           });
-        }, (response, convo) => {
-          convo.next();
-        });
+        }
+        else {
+          bot.startConversation(message, function (err, convo) {
+            convo.ask({
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': createProductsGalery(products.products, false)
+                }
+              }
+            });
+          }, (response, convo) => {
+            convo.next();
+          });
+        }
+      }
+      else if (message.quick_reply.payload.startsWith('gotoCatalogPage=')) {
+        BOT_CONFIG.catalogPageNumber = +message.quick_reply.payload.replace('gotoCatalogPage=', '');
+        let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
+        if (!catalog.categories.length) {
+          bot.reply(message, {
+            text: 'There are no categories in this catalogue',
+          });
+        }
+        else {
+          bot.reply(message, {
+            text: 'Send catalogue',
+            quick_replies: getCatalogNames(catalog.categories, BOT_CONFIG.catalogPageNumber)
+          });
+        }
       }
     }
     if (message.postback) {
@@ -132,21 +195,28 @@ module.exports = (controller) => {
       }
       else if (message.postback.payload.startsWith('product?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
-        product.sku = responseProduct.sku;
-        product.userId = message.sender.id;
-        bot.startConversation(message, (err, convo) => {
-          convo.ask({
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': createProductsGalery([responseProduct], false)
-              }
-            }
+        if (!responseProduct) {
+          bot.reply(message, {
+            'text': 'No such product'
           });
-        }, (response, convo) => {
-          convo.next();
-        });
+        }
+        else {
+          BOT_CONFIG.product.sku = responseProduct.sku;
+          BOT_CONFIG.product.userId = message.sender.id;
+          bot.startConversation(message, (err, convo) => {
+            convo.ask({
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': createProductsGalery([responseProduct], false)
+                }
+              }
+            });
+          }, (response, convo) => {
+            convo.next();
+          });
+        }
       }
       else if (message.postback.payload === process.env.SHARE_NUMBER) {
         bot.startConversation(message, (err, convo) => {
@@ -164,12 +234,11 @@ module.exports = (controller) => {
     }
     if (message.nlp && message.nlp.entities && message.nlp.entities.phone_number) {
       // console.log(phoneRegexp.test(message.test));
-      console.log(message);
-      product.phone = message.text;
-      product.userId = message.sender.id;
-      bot.startConversation(message, function (err, convo) {
-        var self = product;
-        var db = new DB();
+      BOT_CONFIG.product.phone = message.text;
+      BOT_CONFIG.product.userId = message.sender.id;
+      bot.startConversation(message, (err, convo) => {
+        const selfProduct = BOT_CONFIG.product;
+        const db = new DB();
         convo.ask({
           'text': 'Share your location',
           'quick_replies': [{
@@ -178,9 +247,9 @@ module.exports = (controller) => {
           'payload': 'location'
         }, async(response, convo) => {
           if (response && response.attachments) {
-            self.coordinates = response.attachments[0].payload.coordinates;
-            self.timestamp = response.timestamp;
-            let savePurchase = await db.savePurchase(product);
+            selfProduct.coordinates = response.attachments[0].payload.coordinates;
+            selfProduct.timestamp = response.timestamp;
+            let savePurchase = await db.savePurchase(selfProduct);
             if (savePurchase) {
               convo.say('Thank you for your purchase, it will be delivered within 2 days');
               convo.next();
@@ -207,7 +276,7 @@ function greetingMenue() {
     {
       "content_type": "text",
       "title": "Shop",
-      "payload": "show_products",
+      "payload": `show_products&page?=${0}`,
     },
     {
       "content_type": "text",
@@ -219,39 +288,66 @@ function greetingMenue() {
       'title': 'Invite a friend',
       'payload': 'invite'
     }
-  ]
+  ];
   return greeteng;
 }
 
-function getCatalogNames(data) {
+function getCatalogNames(data, pageNumber) {
+  let page = pageNumber;
+  let names = [];
+  if (page > 1) {
+    let back = {
+      'content_type': 'text',
+      'title': '<<< Go back',
+      'payload': `gotoCatalogPage=${page-1}`
+    };
+    names.push(back);
+  }
+  data.forEach(item => {
+    let content = {
+      'content_type': 'text',
+      'title': item.name,
+      'payload': `category?=${item.id}`
+    };
+    names.push(content);
+  });
+  let next = {
+    'content_type': 'text',
+    'title': 'More >>>',
+    'payload': `gotoCatalogPage=${page+1}`
+  };
+  names.push(next);
+  return names;
+}
+
+function getMyPurchases(data) {
   let names = [];
   data.forEach(item => {
     let content = {
       'content_type': 'text',
-      'title': item.name ? item.name : new Date(item.timestamp).toString().substring(0, 15),
-      'payload': item.name ? `category?=${item.id}` : `product_in_purchased?=${item.sku}`
+      'title': new Date(item.timestamp).toString().substring(0, 15),
+      'payload': `product_in_purchased?=${item.sku}`
     };
     names.push(content);
   });
-  return names;
+  return names
 }
 
 function createProductsGalery(data, marker) {
-  let elements = [];
+  let names = [];
   data.forEach(item => {
-
     let content = {
       'title': item.name,
       'image_url': item.images[0].href,
       'subtitle': item.plot ? item.plot : item.shortDescription,
       'buttons': createProductsButtons(data, item, marker)
     };
-    elements.push(content);
+    names.push(content);
   });
-  return elements;
+  return names;
 }
 
-function createFavoriteGalery(data) {
+function createFavoriteGalery(data, ) {
   let elements = [];
   data.forEach(item => {
     let content = {
