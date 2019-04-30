@@ -14,9 +14,13 @@ class BestBuy {
   }
 
   // Fetch products
-  getProducts(page) {
+  getProducts(keyword, page) {
+    let key = '';
+    if (keyword) {
+      key = `search=${keyword}`;
+    }
     return new Promise((resolve, reject) => {
-      bby.products('', { show: 'all', page: page, pageSize: 10 })
+      bby.products(key, { show: 'all', page: page, pageSize: 10 })
         .then(data => resolve(data))
         .catch(error => console.log(`BESTBUY ERROR ${error.status} ${error.statusText}`));
     });

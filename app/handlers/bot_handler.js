@@ -8,7 +8,8 @@ const db = new DB();
 const BOT_CONFIG = {
   product: {},
   catalogPageNumber: 1,
-  productsPageNumber: 0
+  productsPageNumber: 1,
+  keyword: null
 };
 
 module.exports = (controller) => {
@@ -16,7 +17,7 @@ module.exports = (controller) => {
   // Handles "\Get Started & Main menue\" buttons
   controller.hears(process.env.FIRST_VISIT, 'facebook_postback', (bot, message) => {
     bot.reply(message, {
-      text: 'Hi! Nice to see you!',
+      text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
       quick_replies: greetingMenue()
     });
   });
@@ -39,84 +40,68 @@ module.exports = (controller) => {
 
   // Handles \'My purchases\', \'Shop\', \'Favorites\', \'Invite a friend\' messages
   controller.hears(['My purchases', 'Shop', 'Favorites', 'Invite a friend', 'Next >>>', '<<< Prev'], 'message_received', async(bot, message) => {
-    let arg = message.quick_reply.payload;
-    if (arg === 'my_purchases') {
-      const purchases = await db.getPurchases(message.sender.id);
-      console.log(purchases);
-      bot.reply(message, {
-        text: 'Purchases list',
-        quick_replies: getMyPurchases(purchases)
-      });
-    }
-    else if (arg === 'favorites') {
-      const list = await db.getFavorites(message.sender.id);
-      bot.startConversation(message, (err, convo) => {
-        convo.say({
-          attachment: {
-            'type': 'template',
-            'payload': {
-              'template_type': 'generic',
-              'elements': createFavoriteGalery(list)
-            }
-          }
-        });
-      }, (response, convo) => {
-        convo.next();
-      });
-    }
-    else if (arg === 'invite') {
-      bot.reply(message, 'Invite a friend');
-    }
-    else if (arg.startsWith('show_products&page?=')) {
-      BOT_CONFIG.productsPageNumber = arg.replace('show_products&page?=', '') === '-1' ? --BOT_CONFIG.productsPageNumber : ++BOT_CONFIG.productsPageNumber;
-      BOT_CONFIG.productsPageNumber = !BOT_CONFIG.productsPageNumber ? 1 : BOT_CONFIG.productsPageNumber;
-      let collection = await bestBuy.getProducts(BOT_CONFIG.productsPageNumber);
-      if (!collection.products.length) {
-        bot.reply(message, {
-          text: 'There are no products in this collection',
-        });
-      }
-      else {
-        bot.startConversation(message, (err, convo) => {
-          convo.ask({
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': createProductsGalery(collection.products, false)
-              }
-            }
+    if (message.quick_reply) {
+      let arg = message.quick_reply.payload;
+      if (arg === 'my_purchases') {
+        const purchases = await db.getPurchases(message.sender.id);
+        if (!purchases.length) {
+          bot.reply(message, {
+            'text': 'You have no purchases yet'
           });
-          setTimeout(() => {
-            bot.reply(message, {
-              text: 'Navigate through list of products',
-              quick_replies: [{
-                  "content_type": "text",
-                  "title": "<<< Prev",
-                  "payload": `show_products&page?=-1`
-                },
-                {
-                  "content_type": "text",
-                  "title": "Next >>>",
-                  "payload": `show_products&page?=1`
+        }
+        else {
+          bot.reply(message, {
+            text: 'Purchases list',
+            quick_replies: getMyPurchases(purchases)
+          });
+        }
+      }
+      else if (arg === 'favorites') {
+        const list = await db.getFavorites(message.sender.id);
+        if (!list.length) {
+          bot.reply(message, {
+            'text': 'You have nothing in favorites yet'
+          });
+        }
+        else {
+          bot.startConversation(message, (err, convo) => {
+            convo.say({
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': createFavoriteGalery(list)
                 }
-              ]
+              }
             });
-          }, 3500);
-        }, (response, convo) => {
-          convo.next();
-        });
+          }, (response, convo) => {
+            convo.next();
+          });
+        }
+      }
+      else if (arg === 'invite') {
+        bot.reply(message, 'Invite a friend');
+      }
+      else if (arg.startsWith('show_products&page?=')) {
+        if (arg.replace('show_products&page?=', '') == 0) {
+          BOT_CONFIG.keyword = null;
+          BOT_CONFIG.productsPageNumber = 1;
+        }
+        BOT_CONFIG.productsPageNumber = arg.replace('show_products&page?=', '') === '-1' ?
+          --BOT_CONFIG.productsPageNumber : arg.replace('show_products&page?=', '') === '+1' ?
+          ++BOT_CONFIG.productsPageNumber : 1;
+        BOT_CONFIG.productsPageNumber = !BOT_CONFIG.productsPageNumber ? 1 : BOT_CONFIG.productsPageNumber;
+        productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
       }
     }
   });
 
   // Handles '*'
   controller.hears('(.*)', 'message_received', async(bot, message) => {
-    console.log(message);
     if (!message.quick_reply && !message.postback && !message.attachments) {
-      bot.reply(message, message.text);
-      let products = await bestBuy.getProductsFromCatalog(message.text);
-      console.log(products.products);
+      BOT_CONFIG.keyword = message.text;
+      BOT_CONFIG.productsPageNumber = 1;
+      productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
     }
     else if (message.quick_reply) {
       if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
@@ -233,7 +218,6 @@ module.exports = (controller) => {
       }
     }
     if (message.nlp && message.nlp.entities && message.nlp.entities.phone_number) {
-      // console.log(phoneRegexp.test(message.test));
       BOT_CONFIG.product.phone = message.text;
       BOT_CONFIG.product.userId = message.sender.id;
       bot.startConversation(message, (err, convo) => {
@@ -251,7 +235,7 @@ module.exports = (controller) => {
             selfProduct.timestamp = response.timestamp;
             let savePurchase = await db.savePurchase(selfProduct);
             if (savePurchase) {
-              convo.say('Thank you for your purchase, it will be delivered within 2 days');
+              convo.say('Our courier will contact you within 2 hours');
               convo.next();
             }
           }
@@ -265,6 +249,47 @@ module.exports = (controller) => {
     }
   });
 };
+
+///// Galery builder helper functions /////
+async function productGaleryBuilder(bot, message, keyword) {
+  let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
+  if (!collection.products.length) {
+    bot.reply(message, {
+      text: 'There are no products in this collection',
+    });
+  }
+  else {
+    bot.startConversation(message, (err, convo) => {
+      convo.ask({
+        attachment: {
+          'type': 'template',
+          'payload': {
+            'template_type': 'generic',
+            'elements': createProductsGalery(collection.products, false)
+          }
+        }
+      });
+      setTimeout(() => {
+        bot.reply(message, {
+          text: 'Navigate through list of products',
+          quick_replies: [{
+              "content_type": "text",
+              "title": "<<< Prev",
+              "payload": `show_products&page?=-1`
+            },
+            {
+              "content_type": "text",
+              "title": "Next >>>",
+              "payload": `show_products&page?=+1`
+            }
+          ]
+        });
+      }, 3500);
+    }, (response, convo) => {
+      convo.next();
+    });
+  }
+}
 
 ///// Helper functions //////
 function greetingMenue() {
@@ -336,6 +361,9 @@ function getMyPurchases(data) {
 function createProductsGalery(data, marker) {
   let names = [];
   data.forEach(item => {
+    if (!item.images.length) {
+      item.images.push({ href: 'https://2.bp.blogspot.com/-fB3ZHgfBUNw/XMbd-eE1RAI/AAAAAAAACAw/ezVLWMXRr-cEwT3VOM5gMWOkfC1cyq6HACLcBGAs/s1600/600px-No_image_available.svg.png' });
+    }
     let content = {
       'title': item.name,
       'image_url': item.images[0].href,
@@ -347,7 +375,7 @@ function createProductsGalery(data, marker) {
   return names;
 }
 
-function createFavoriteGalery(data, ) {
+function createFavoriteGalery(data) {
   let elements = [];
   data.forEach(item => {
     let content = {
