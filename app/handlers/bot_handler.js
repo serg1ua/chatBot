@@ -24,18 +24,8 @@ module.exports = (controller) => {
 
   // Handles \'Send catalogue\' button
   controller.hears(process.env.SHOW_CATALOGUE, 'facebook_postback', async(bot, message) => {
-    let catalog = await bestBuy.getCatalog(1);
-    if (!catalog.categories.length) {
-      bot.reply(message, {
-        text: 'There are no categories in this catalogue',
-      });
-    }
-    else {
-      bot.reply(message, {
-        text: 'Send catalogue',
-        quick_replies: getCatalogNames(catalog.categories, BOT_CONFIG.catalogPageNumber)
-      });
-    }
+    BOT_CONFIG.catalogPageNumber = 1;
+    catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
   });
 
   // Handles \'My purchases\', \'Shop\', \'Favorites\', \'Invite a friend\' messages
@@ -87,11 +77,12 @@ module.exports = (controller) => {
           BOT_CONFIG.keyword = null;
           BOT_CONFIG.productsPageNumber = 1;
         }
-        BOT_CONFIG.productsPageNumber = arg.replace('show_products&page?=', '') === '-1' ?
-          --BOT_CONFIG.productsPageNumber : arg.replace('show_products&page?=', '') === '+1' ?
-          ++BOT_CONFIG.productsPageNumber : 1;
-        BOT_CONFIG.productsPageNumber = !BOT_CONFIG.productsPageNumber ? 1 : BOT_CONFIG.productsPageNumber;
+        BOT_CONFIG.productsPageNumber = +arg.replace('show_products&page?=', '');
         productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
+      }
+      else if (arg.startsWith('gotoCatalogPage=')) {
+        BOT_CONFIG.catalogPageNumber = +message.quick_reply.payload.replace('gotoCatalogPage=', '');
+        catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
       }
     }
   });
@@ -140,21 +131,6 @@ module.exports = (controller) => {
             });
           }, (response, convo) => {
             convo.next();
-          });
-        }
-      }
-      else if (message.quick_reply.payload.startsWith('gotoCatalogPage=')) {
-        BOT_CONFIG.catalogPageNumber = +message.quick_reply.payload.replace('gotoCatalogPage=', '');
-        let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
-        if (!catalog.categories.length) {
-          bot.reply(message, {
-            text: 'There are no categories in this catalogue',
-          });
-        }
-        else {
-          bot.reply(message, {
-            text: 'Send catalogue',
-            quick_replies: getCatalogNames(catalog.categories, BOT_CONFIG.catalogPageNumber)
           });
         }
       }
@@ -272,21 +248,27 @@ async function productGaleryBuilder(bot, message, keyword) {
       setTimeout(() => {
         bot.reply(message, {
           text: 'Navigate through list of products',
-          quick_replies: [{
-              "content_type": "text",
-              "title": "<<< Prev",
-              "payload": `show_products&page?=-1`
-            },
-            {
-              "content_type": "text",
-              "title": "Next >>>",
-              "payload": `show_products&page?=+1`
-            }
-          ]
+          quick_replies: quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber)
         });
       }, 3500);
     }, (response, convo) => {
       convo.next();
+    });
+  }
+}
+
+/////Catalog builder helper function /////
+async function catalogBuilder(bot, message, pageNumber) {
+  let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
+  if (!catalog.categories.length) {
+    bot.reply(message, {
+      text: 'There are no categories in this catalogue',
+    });
+  }
+  else {
+    bot.reply(message, {
+      text: 'Send catalogue',
+      quick_replies: quickRepliesBuilder(catalog.categories, pageNumber)
     });
   }
 }
@@ -301,7 +283,7 @@ function greetingMenue() {
     {
       "content_type": "text",
       "title": "Shop",
-      "payload": `show_products&page?=${0}`,
+      "payload": `show_products&page?=${1}`,
     },
     {
       "content_type": "text",
@@ -317,29 +299,31 @@ function greetingMenue() {
   return greeteng;
 }
 
-function getCatalogNames(data, pageNumber) {
+function quickRepliesBuilder(data, pageNumber) {
   let page = pageNumber;
   let names = [];
   if (page > 1) {
     let back = {
       'content_type': 'text',
-      'title': '<<< Go back',
-      'payload': `gotoCatalogPage=${page-1}`
+      'title': '<<< Prev',
+      'payload': data ? `gotoCatalogPage=${page-1}` : `show_products&page?=${page-1}`
     };
     names.push(back);
   }
-  data.forEach(item => {
-    let content = {
-      'content_type': 'text',
-      'title': item.name,
-      'payload': `category?=${item.id}`
-    };
-    names.push(content);
-  });
+  if (data) {
+    data.forEach(item => {
+      let content = {
+        'content_type': 'text',
+        'title': item.name,
+        'payload': `category?=${item.id}`
+      };
+      names.push(content);
+    });
+  }
   let next = {
     'content_type': 'text',
-    'title': 'More >>>',
-    'payload': `gotoCatalogPage=${page+1}`
+    'title': 'Next >>>',
+    'payload': data ? `gotoCatalogPage=${page+1}` : `show_products&page?=${page+1}`
   };
   names.push(next);
   return names;
@@ -355,7 +339,7 @@ function getMyPurchases(data) {
     };
     names.push(content);
   });
-  return names
+  return names;
 }
 
 function createProductsGalery(data, marker) {
