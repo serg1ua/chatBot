@@ -73,15 +73,18 @@ module.exports = (controller) => {
         bot.reply(message, 'Invite a friend');
       }
       else if (arg.startsWith('show_products&page?=')) {
-        if (arg.replace('show_products&page?=', '') == 0) {
+        let pageNumber = arg.replace('show_products&page?=', '');
+        if (pageNumber === '0') {
           BOT_CONFIG.keyword = null;
           BOT_CONFIG.productsPageNumber = 1;
         }
-        BOT_CONFIG.productsPageNumber = +arg.replace('show_products&page?=', '');
+        else {
+          BOT_CONFIG.productsPageNumber = +pageNumber;
+        }
         productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
       }
       else if (arg.startsWith('gotoCatalogPage=')) {
-        BOT_CONFIG.catalogPageNumber = +message.quick_reply.payload.replace('gotoCatalogPage=', '');
+        BOT_CONFIG.catalogPageNumber = +arg.replace('gotoCatalogPage=', '');
         catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
       }
     }
@@ -283,7 +286,7 @@ function greetingMenue() {
     {
       "content_type": "text",
       "title": "Shop",
-      "payload": `show_products&page?=${1}`,
+      "payload": `show_products&page?=0`,
     },
     {
       "content_type": "text",
