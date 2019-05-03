@@ -33,7 +33,16 @@ module.exports = (controller) => {
     if (message.quick_reply) {
       let arg = message.quick_reply.payload;
       if (arg === 'my_purchases') {
-        const purchases = await db.getPurchases(message.sender.id);
+        let purchases;
+        try {
+          purchases = await db.getPurchases(message.sender.id);
+        }
+        catch (error) {
+          bot.reply(message, {
+            'text': 'Error occurred while fetching your purchases.\nTry again later.'
+          });
+          console.log(error);
+        }
         if (!purchases.length) {
           bot.reply(message, {
             'text': 'You have no purchases yet'
@@ -47,7 +56,16 @@ module.exports = (controller) => {
         }
       }
       else if (arg === 'favorites') {
-        const list = await db.getFavorites(message.sender.id);
+        let list;
+        try {
+          list = await db.getFavorites(message.sender.id);
+        }
+        catch (error) {
+          bot.reply(message, {
+            'text': 'Error occurred while fetching your favorites.\nTry again later.'
+          });
+          console.log(error);
+        }
         if (!list.length) {
           bot.reply(message, {
             'text': 'You have nothing in favorites yet'
@@ -142,9 +160,18 @@ module.exports = (controller) => {
       if (message.postback.payload.startsWith('favorite=')) {
         const userId = message.sender.id;
         const item = message.postback.payload.replace('favorite=', '');
-        let favorite = await db.checkFavorite(item);
-        if (!favorite) {
-          favorite = await db.addNewFavorite(userId, item, message.timestamp);
+        let favorite;
+        try {
+          favorite = await db.checkFavorite(item);
+          if (!favorite) {
+            favorite = await db.addNewFavorite(userId, item, message.timestamp);
+          }
+        }
+        catch (error) {
+          bot.reply(message, {
+            text: 'Error occurred while adding to favorites.\nTry again later.'
+          });
+          console.log(error);
         }
         if (favorite) {
           bot.reply(message, {
@@ -212,7 +239,16 @@ module.exports = (controller) => {
           if (response && response.attachments) {
             selfProduct.coordinates = response.attachments[0].payload.coordinates;
             selfProduct.timestamp = response.timestamp;
-            let savePurchase = await db.savePurchase(selfProduct);
+            let savePurchase;
+            try {
+              savePurchase = await db.savePurchase(selfProduct);
+            }
+            catch (error) {
+              bot.reply(message, {
+                'text': 'Error occurred while processing your purchase'
+              });
+              console.log(error);
+            }
             if (savePurchase) {
               convo.say('Our courier will contact you within 2 hours');
               convo.next();
