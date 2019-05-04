@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "npm run dev",
+    "start": "npm run prod",
     "prod": "NODE_ENV=production node bot.js",
     "dev": "DEBUG=chatbot:server npm run dev-server",
     "dev-server": "NODE_ENV=development nodemon bot.js",
     "test": "npm run test-unit",
-    "test-unit": "NODE_ENV=test mocha --require co-mocha 'app/handlers/*.spec.js'"
+    "test-unit": "NODE_ENV=test mocha --require co-mocha 'app/handlers/*.spec.js'",
+    "lint": "eslint app.js"
   },
   "dependencies": {
     "bestbuy": "^2.1.3",

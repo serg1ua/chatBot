@@ -1,7 +1,11 @@
-// Bot handlers
+///// Bot handlers /////
+
 const BestBuy = require('./best_buy_handler');
 const bestBuy = new BestBuy();
 const DB = require('./db_handler');
+const Helpers = require('./bot_helper');
+
+const helpers = new Helpers;
 const db = new DB();
 
 // Global bot_handler config variable
@@ -18,7 +22,7 @@ module.exports = (controller) => {
   controller.hears(process.env.FIRST_VISIT, 'facebook_postback', (bot, message) => {
     bot.reply(message, {
       text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
-      quick_replies: greetingMenue()
+      quick_replies: helpers.greetingMenue()
     });
   });
 
@@ -51,7 +55,7 @@ module.exports = (controller) => {
         else {
           bot.reply(message, {
             text: 'Purchases list',
-            quick_replies: getMyPurchases(purchases)
+            quick_replies: helpers.getMyPurchases(purchases)
           });
         }
       }
@@ -78,7 +82,7 @@ module.exports = (controller) => {
                 'type': 'template',
                 'payload': {
                   'template_type': 'generic',
-                  'elements': createFavoriteGalery(list)
+                  'elements': helpers.createFavoriteGalery(list)
                 }
               }
             });
@@ -88,7 +92,15 @@ module.exports = (controller) => {
         }
       }
       else if (arg === 'invite') {
-        bot.reply(message, 'Invite a friend');
+        controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
+          if (err) {
+            console.log(err);
+          }
+          else {
+            bot.reply(message, { 'text': `Send link to 3 friend, and get one product for free!` });
+            bot.reply(message, { 'attachment': { 'type': 'image', 'payload': { url } } });
+          }
+        });
       }
       else if (arg.startsWith('show_products&page?=')) {
         let pageNumber = arg.replace('show_products&page?=', '');
@@ -124,7 +136,7 @@ module.exports = (controller) => {
               'type': 'template',
               'payload': {
                 'template_type': 'generic',
-                'elements': createProductsGalery([responseProduct], true)
+                'elements': helpers.createProductsGalery([responseProduct], true)
               }
             }
           });
@@ -146,7 +158,7 @@ module.exports = (controller) => {
                 'type': 'template',
                 'payload': {
                   'template_type': 'generic',
-                  'elements': createProductsGalery(products.products, false)
+                  'elements': helpers.createProductsGalery(products.products, false)
                 }
               }
             });
@@ -200,7 +212,7 @@ module.exports = (controller) => {
                 'type': 'template',
                 'payload': {
                   'template_type': 'generic',
-                  'elements': createProductsGalery([responseProduct], false)
+                  'elements': helpers.createProductsGalery([responseProduct], false)
                 }
               }
             });
@@ -265,7 +277,7 @@ module.exports = (controller) => {
   });
 };
 
-///// Galery builder helper functions /////
+///// Galery builder /////
 async function productGaleryBuilder(bot, message, keyword) {
   let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
   if (!collection.products.length) {
@@ -280,14 +292,14 @@ async function productGaleryBuilder(bot, message, keyword) {
           'type': 'template',
           'payload': {
             'template_type': 'generic',
-            'elements': createProductsGalery(collection.products, false)
+            'elements': helpers.createProductsGalery(collection.products, false)
           }
         }
       });
       setTimeout(() => {
         bot.reply(message, {
           text: 'Navigate through list of products',
-          quick_replies: quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber)
+          quick_replies: helpers.quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber)
         });
       }, 3500);
     }, (response, convo) => {
@@ -296,7 +308,7 @@ async function productGaleryBuilder(bot, message, keyword) {
   }
 }
 
-/////Catalog builder helper function /////
+///// Catalog builder /////
 async function catalogBuilder(bot, message, pageNumber) {
   let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
   if (!catalog.categories.length) {
@@ -307,150 +319,7 @@ async function catalogBuilder(bot, message, pageNumber) {
   else {
     bot.reply(message, {
       text: 'Send catalogue',
-      quick_replies: quickRepliesBuilder(catalog.categories, pageNumber)
+      quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber)
     });
-  }
-}
-
-///// Helper functions //////
-function greetingMenue() {
-  let greeteng = [{
-      "content_type": "text",
-      "title": "My purchases",
-      "payload": "my_purchases",
-    },
-    {
-      "content_type": "text",
-      "title": "Shop",
-      "payload": `show_products&page?=0`,
-    },
-    {
-      "content_type": "text",
-      'title': 'Favorites',
-      'payload': 'favorites'
-    },
-    {
-      'content_type': 'text',
-      'title': 'Invite a friend',
-      'payload': 'invite'
-    }
-  ];
-  return greeteng;
-}
-
-function quickRepliesBuilder(data, pageNumber) {
-  let page = pageNumber;
-  let names = [];
-  if (page > 1) {
-    let back = {
-      'content_type': 'text',
-      'title': '<<< Prev',
-      'payload': data ? `gotoCatalogPage=${page-1}` : `show_products&page?=${page-1}`
-    };
-    names.push(back);
-  }
-  if (data) {
-    data.forEach(item => {
-      let content = {
-        'content_type': 'text',
-        'title': item.name,
-        'payload': `category?=${item.id}`
-      };
-      names.push(content);
-    });
-  }
-  let next = {
-    'content_type': 'text',
-    'title': 'Next >>>',
-    'payload': data ? `gotoCatalogPage=${page+1}` : `show_products&page?=${page+1}`
-  };
-  names.push(next);
-  return names;
-}
-
-function getMyPurchases(data) {
-  let names = [];
-  data.forEach(item => {
-    let content = {
-      'content_type': 'text',
-      'title': new Date(item.timestamp).toString().substring(0, 15),
-      'payload': `product_in_purchased?=${item.sku}`
-    };
-    names.push(content);
-  });
-  return names;
-}
-
-function createProductsGalery(data, marker) {
-  let names = [];
-  data.forEach(item => {
-    if (!item.images.length) {
-      item.images.push({ href: 'https://2.bp.blogspot.com/-fB3ZHgfBUNw/XMbd-eE1RAI/AAAAAAAACAw/ezVLWMXRr-cEwT3VOM5gMWOkfC1cyq6HACLcBGAs/s1600/600px-No_image_available.svg.png' });
-    }
-    let content = {
-      'title': item.name,
-      'image_url': item.images[0].href,
-      'subtitle': item.plot ? item.plot : item.shortDescription,
-      'buttons': createProductsButtons(data, item, marker)
-    };
-    names.push(content);
-  });
-  return names;
-}
-
-function createFavoriteGalery(data) {
-  let elements = [];
-  data.forEach(item => {
-    let content = {
-      'title': item.name,
-      'image_url': item.image,
-      'buttons': [{
-          'type': 'postback',
-          'title': 'Detales',
-          'payload': `product?=${item.sku}`
-        },
-        {
-          'type': 'postback',
-          'title': 'Main menu',
-          'payload': process.env.FIRST_VISIT
-        }
-      ]
-    };
-    elements.push(content);
-  });
-  return elements;
-}
-
-function createProductsButtons(data, item, marker) {
-  if (!marker) {
-    return [{
-        'type': 'postback',
-        'title': data.length > 1 ? 'Detales' : 'BUY',
-        'payload': data.length > 1 ? `product?=${item.sku}` : process.env.SHARE_NUMBER
-      },
-      {
-        'type': 'postback',
-        'title': 'To favorites',
-        'payload': `favorite=${item.sku}&${item.name}&${item.images[0].href}`
-      },
-      {
-        'type': 'postback',
-        'title': 'Main menu',
-        'payload': process.env.FIRST_VISIT
-      }
-    ];
-  }
-  else {
-    return [{
-        'type': 'postback',
-        'title': 'Repeat?',
-        'payload': `product?=${item.sku}`
-      },
-      {
-        'type': 'postback',
-        'title': 'Main menue',
-        'payload': process.env.FIRST_VISIT
-      }
-    ];
   }
 }
