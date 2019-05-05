@@ -11,17 +11,17 @@ function botSetup(controller) {
   // Setup persistent menue
   controller.api.thread_settings.menu(
     [{
-      "locale": "default",
-      "composer_input_disabled": false,
-      "call_to_actions": [{
-          "title": "Main menu",
-          "type": "postback",
-          "payload": process.env.FIRST_VISIT
+      'locale': 'default',
+      'composer_input_disabled': false,
+      'call_to_actions': [{
+          'title': 'Main menu',
+          'type': 'postback',
+          'payload': process.env.FIRST_VISIT
         },
         {
-          "title": "Send catalogue",
-          "type": "postback",
-          "payload": process.env.SHOW_CATALOGUE
+          'title': 'Send catalogue',
+          'type': 'postback',
+          'payload': process.env.SHOW_CATALOGUE
         }
       ]
     }]
