@@ -1,11 +1,11 @@
 ///// Bot handlers /////
 
 const BestBuy = require('./best_buy_handler');
-const bestBuy = new BestBuy();
 const DB = require('./db_handler');
 const Helpers = require('./bot_helper');
 
-const helpers = new Helpers;
+const helpers = new Helpers();
+const bestBuy = new BestBuy();
 const db = new DB();
 
 // Global bot_handler config variable
@@ -43,13 +43,13 @@ module.exports = (controller) => {
         }
         catch (error) {
           bot.reply(message, {
-            'text': 'Error occurred while fetching your purchases.\nTry again later.'
+            text: 'Error occurred while fetching your purchases.\nTry again later.'
           });
           console.log(error);
         }
         if (!purchases.length) {
           bot.reply(message, {
-            'text': 'You have no purchases yet'
+            text: 'You have no purchases yet'
           });
         }
         else {
@@ -66,13 +66,13 @@ module.exports = (controller) => {
         }
         catch (error) {
           bot.reply(message, {
-            'text': 'Error occurred while fetching your favorites.\nTry again later.'
+            text: 'Error occurred while fetching your favorites.\nTry again later.'
           });
           console.log(error);
         }
         if (!list.length) {
           bot.reply(message, {
-            'text': 'You have nothing in favorites yet'
+            text: 'You have nothing in favorites yet'
           });
         }
         else {
@@ -97,8 +97,8 @@ module.exports = (controller) => {
             console.log(err);
           }
           else {
-            bot.reply(message, { 'text': `Send link to 3 friend, and get one product for free!` });
-            bot.reply(message, { 'attachment': { 'type': 'image', 'payload': { url } } });
+            bot.reply(message, { text: `Send link to 3 friend, and get one product for free!` });
+            bot.reply(message, { attachment: { 'type': 'image', 'payload': { url } } });
           }
         });
       }
@@ -146,7 +146,12 @@ module.exports = (controller) => {
       }
       else if (message.quick_reply.payload.startsWith('category?=')) {
         let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
-        if (!products.products.length) {
+        if (products.data && products.data.error) {
+          bot.reply(message, {
+            text: `Error occurred while processing your request\n${products.data.error.status}`,
+          });
+        }
+        else if (!products.products.length) {
           bot.reply(message, {
             text: 'This catalog is currently empty, pllease try another',
           });
@@ -187,8 +192,8 @@ module.exports = (controller) => {
         }
         if (favorite) {
           bot.reply(message, {
-            'text': 'Added to favorites',
-            'quick_replies': [{
+            text: 'Added to favorites',
+            quick_replies: [{
               'content_type': 'text',
               'title': 'Show favorites',
               'payload': 'favorites'
@@ -198,9 +203,14 @@ module.exports = (controller) => {
       }
       else if (message.postback.payload.startsWith('product?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
-        if (!responseProduct) {
+        if (responseProduct.data && responseProduct.data.error) {
           bot.reply(message, {
-            'text': 'No such product'
+            text: `Error occurred while processing your request\n${responseProduct.data.error.status}`,
+          });
+        }
+        else if (!responseProduct) {
+          bot.reply(message, {
+            text: 'No such product'
           });
         }
         else {
@@ -224,11 +234,11 @@ module.exports = (controller) => {
       else if (message.postback.payload === process.env.SHARE_NUMBER) {
         bot.startConversation(message, (err, convo) => {
           convo.ask({
-            'text': 'Share your phone number',
-            'quick_replies': [{
+            text: 'Share your phone number',
+            quick_replies: [{
               'content_type': 'user_phone_number'
             }],
-            'payload': 'user_phone'
+            payload: 'user_phone'
           });
         }, (response, convo) => {
           convo.next();
@@ -242,11 +252,11 @@ module.exports = (controller) => {
         const selfProduct = BOT_CONFIG.product;
         const db = new DB();
         convo.ask({
-          'text': 'Share your location',
-          'quick_replies': [{
+          text: 'Share your location',
+          quick_replies: [{
             'content_type': 'location'
           }],
-          'payload': 'location'
+          payload: 'location'
         }, async(response, convo) => {
           if (response && response.attachments) {
             selfProduct.coordinates = response.attachments[0].payload.coordinates;
@@ -257,7 +267,7 @@ module.exports = (controller) => {
             }
             catch (error) {
               bot.reply(message, {
-                'text': 'Error occurred while processing your purchase'
+                text: 'Error occurred while processing your purchase'
               });
               console.log(error);
             }
@@ -280,7 +290,12 @@ module.exports = (controller) => {
 ///// Galery builder /////
 async function productGaleryBuilder(bot, message, keyword) {
   let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
-  if (!collection.products.length) {
+  if (collection.data && collection.data.error) {
+    bot.reply(message, {
+      text: `Error occurred while processing your request\n${collection.data.error.status}`,
+    });
+  }
+  else if (!collection.products.length) {
     bot.reply(message, {
       text: 'There are no products in this collection',
     });
@@ -311,7 +326,12 @@ async function productGaleryBuilder(bot, message, keyword) {
 ///// Catalog builder /////
 async function catalogBuilder(bot, message, pageNumber) {
   let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
-  if (!catalog.categories.length) {
+  if (catalog.data && catalog.data.error) {
+    bot.reply(message, {
+      text: `Error occurred while processing your request\n${catalog.data.error.status}`,
+    });
+  }
+  else if (!catalog.categories.length) {
     bot.reply(message, {
       text: 'There are no categories in this catalogue',
     });
