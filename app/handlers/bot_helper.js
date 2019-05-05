@@ -5,17 +5,17 @@ class BotHelpers {
   // Greeting menu
   greetingMenue() {
     let greeteng = [{
-        "content_type": "text",
-        "title": "My purchases",
-        "payload": "my_purchases",
+        'content_type': 'text',
+        'title': 'My purchases',
+        'payload': 'my_purchases',
       },
       {
-        "content_type": "text",
-        "title": "Shop",
-        "payload": `show_products&page?=0`,
+        'content_type': 'text',
+        'title': 'Shop',
+        'payload': `show_products&page?=0`,
       },
       {
-        "content_type": "text",
+        'content_type': 'text',
         'title': 'Favorites',
         'payload': 'favorites'
       },
