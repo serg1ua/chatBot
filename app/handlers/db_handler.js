@@ -6,9 +6,14 @@ class DB {
   constructor() {}
 
   // Check if product exists in favorites
-  checkFavorite(favorite) {
-    const sku = favorite.split('&')[0];
-    return Favorite.findOne({ 'sku': sku }).exec();
+  checkFavorite(userId, item) {
+    const sku = item.split('&')[0];
+    return Favorite.findOne({ 'userId': userId, 'sku': sku })
+      .then(favorite => favorite)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
   }
 
   // Add new product to favorites
@@ -20,13 +25,22 @@ class DB {
     favorite.image = items[2];
     favorite.userId = userId;
     favorite.timestamp = timestamp;
-    let promise = favorite.save();
-    return promise.then(favorite);
+    return favorite.save()
+      .then(favorite => favorite)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
   }
 
   // Fetch list of favoretes from DB
   getFavorites(userId) {
-    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10).exec();
+    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10)
+      .then(favorites => favorites)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
   }
 
   // Save purchased
@@ -37,15 +51,23 @@ class DB {
     purchase.phone = product.phone;
     purchase.coordinates = product.coordinates;
     purchase.timestamp = product.timestamp;
-    let promise = purchase.save();
-    return promise.then(purchase);
+    return purchase.save()
+      .then(purchase => purchase)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
   }
 
   // Fetch purchases
   getPurchases(userId) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10).exec();
+    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10)
+      .then(purchases => purchases)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
   }
 }
 
 module.exports = DB;
-// exec()

@@ -3,7 +3,9 @@
 const BestBuy = require('./best_buy_handler');
 const DB = require('./db_handler');
 const Helpers = require('./bot_helper');
+const Errors = require('./error_helper');
 
+const errorHelpers = new Errors();
 const helpers = new Helpers();
 const bestBuy = new BestBuy();
 const db = new DB();
@@ -37,20 +39,12 @@ module.exports = (controller) => {
     if (message.quick_reply) {
       let arg = message.quick_reply.payload;
       if (arg === 'my_purchases') {
-        let purchases;
-        try {
-          purchases = await db.getPurchases(message.sender.id);
+        let purchases = await db.getPurchases(message.sender.id);
+        if (purchases && purchases.code && purchases.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(purchases) });
         }
-        catch (error) {
-          bot.reply(message, {
-            text: 'Error occurred while fetching your purchases.\nTry again later.'
-          });
-          console.log(error);
-        }
-        if (!purchases.length) {
-          bot.reply(message, {
-            text: 'You have no purchases yet'
-          });
+        else if (!purchases.length) {
+          bot.reply(message, { text: 'You have no purchases yet' });
         }
         else {
           bot.reply(message, {
@@ -60,20 +54,12 @@ module.exports = (controller) => {
         }
       }
       else if (arg === 'favorites') {
-        let list;
-        try {
-          list = await db.getFavorites(message.sender.id);
+        let list = await db.getFavorites(message.sender.id);
+        if (list && list.code && list.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(list) });
         }
-        catch (error) {
-          bot.reply(message, {
-            text: 'Error occurred while fetching your favorites.\nTry again later.'
-          });
-          console.log(error);
-        }
-        if (!list.length) {
-          bot.reply(message, {
-            text: 'You have nothing in favorites yet'
-          });
+        else if (!list.length) {
+          bot.reply(message, { text: 'You have nothing in favorites yet' });
         }
         else {
           bot.startConversation(message, (err, convo) => {
@@ -130,26 +116,29 @@ module.exports = (controller) => {
     else if (message.quick_reply) {
       if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
-        bot.startConversation(message, (err, convo) => {
-          convo.ask({
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': helpers.createProductsGalery([responseProduct], true)
+        if (responseProduct && responseProduct.data && responseProduct.data.error) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(responseProduct) });
+        }
+        else {
+          bot.startConversation(message, (err, convo) => {
+            convo.ask({
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': helpers.createProductsGalery([responseProduct], true)
+                }
               }
-            }
+            });
+          }, (response, convo) => {
+            convo.next();
           });
-        }, (response, convo) => {
-          convo.next();
-        });
+        }
       }
       else if (message.quick_reply.payload.startsWith('category?=')) {
         let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
-        if (products.data && products.data.error) {
-          bot.reply(message, {
-            text: `Error occurred while processing your request\n${products.data.error.status}`,
-          });
+        if (products && products.data && products.data.error) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(products) });
         }
         else if (!products.products.length) {
           bot.reply(message, {
@@ -177,22 +166,13 @@ module.exports = (controller) => {
       if (message.postback.payload.startsWith('favorite=')) {
         const userId = message.sender.id;
         const item = message.postback.payload.replace('favorite=', '');
-        let favorite;
-        try {
-          favorite = await db.checkFavorite(item);
-          if (!favorite) {
-            favorite = await db.addNewFavorite(userId, item, message.timestamp);
-          }
+        let favorite = await db.checkFavorite(userId, item);
+        if (favorite && favorite.code && favorite.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(favorite) });
         }
-        catch (error) {
+        else if (favorite) {
           bot.reply(message, {
-            text: 'Error occurred while adding to favorites.\nTry again later.'
-          });
-          console.log(error);
-        }
-        if (favorite) {
-          bot.reply(message, {
-            text: 'Added to favorites',
+            text: `"${favorite.name}"\nis already in favorite list`,
             quick_replies: [{
               'content_type': 'text',
               'title': 'Show favorites',
@@ -200,18 +180,29 @@ module.exports = (controller) => {
             }]
           });
         }
+        else if (!favorite) {
+          favorite = await db.addNewFavorite(userId, item, message.timestamp);
+          if (favorite && favorite.code && favorite.errmsg) {
+            bot.reply(message, { text: errorHelpers.dbError(favorite) });
+          }
+          else
+            bot.reply(message, {
+              text: 'Added to favorites',
+              quick_replies: [{
+                'content_type': 'text',
+                'title': 'Show favorites',
+                'payload': 'favorites'
+              }]
+            });
+        }
       }
       else if (message.postback.payload.startsWith('product?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
-        if (responseProduct.data && responseProduct.data.error) {
-          bot.reply(message, {
-            text: `Error occurred while processing your request\n${responseProduct.data.error.status}`,
-          });
+        if (responseProduct && responseProduct.data && responseProduct.data.error) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(responseProduct) });
         }
         else if (!responseProduct) {
-          bot.reply(message, {
-            text: 'No such product'
-          });
+          bot.reply(message, { text: 'No such product' });
         }
         else {
           BOT_CONFIG.product.sku = responseProduct.sku;
@@ -261,17 +252,11 @@ module.exports = (controller) => {
           if (response && response.attachments) {
             selfProduct.coordinates = response.attachments[0].payload.coordinates;
             selfProduct.timestamp = response.timestamp;
-            let savePurchase;
-            try {
-              savePurchase = await db.savePurchase(selfProduct);
+            let savePurchase = await db.savePurchase(selfProduct);
+            if (savePurchase && savePurchase.code && savePurchase.errmsg) {
+              bot.reply(message, { text: errorHelpers.dbError(savePurchase) });
             }
-            catch (error) {
-              bot.reply(message, {
-                text: 'Error occurred while processing your purchase'
-              });
-              console.log(error);
-            }
-            if (savePurchase) {
+            else {
               convo.say('Our courier will contact you within 2 hours');
               convo.next();
             }
@@ -290,15 +275,11 @@ module.exports = (controller) => {
 ///// Galery builder /////
 async function productGaleryBuilder(bot, message, keyword) {
   let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
-  if (collection.data && collection.data.error) {
-    bot.reply(message, {
-      text: `Error occurred while processing your request\n${collection.data.error.status}`,
-    });
+  if (collection && collection.data && collection.data.error) {
+    bot.reply(message, { text: errorHelpers.bestBuyError(collection) });
   }
   else if (!collection.products.length) {
-    bot.reply(message, {
-      text: 'There are no products in this collection',
-    });
+    bot.reply(message, { text: 'There are no products in this collection' });
   }
   else {
     bot.startConversation(message, (err, convo) => {
@@ -326,15 +307,11 @@ async function productGaleryBuilder(bot, message, keyword) {
 ///// Catalog builder /////
 async function catalogBuilder(bot, message, pageNumber) {
   let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
-  if (catalog.data && catalog.data.error) {
-    bot.reply(message, {
-      text: `Error occurred while processing your request\n${catalog.data.error.status}`,
-    });
+  if (catalog && catalog.data && catalog.data.error) {
+    bot.reply(message, { text: errorHelpers.bestBuyError(catalog) });
   }
   else if (!catalog.categories.length) {
-    bot.reply(message, {
-      text: 'There are no categories in this catalogue',
-    });
+    bot.reply(message, { text: 'There are no categories in this catalogue' });
   }
   else {
     bot.reply(message, {
