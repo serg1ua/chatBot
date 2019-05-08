@@ -50,5 +50,3 @@ class BestBuy {
 }
 
 module.exports = BestBuy;
-// https://www.messenger.com/t/324350831773474
-// console.log(`BESTBUY ERROR ${error.status} ${error.statusText}`)
