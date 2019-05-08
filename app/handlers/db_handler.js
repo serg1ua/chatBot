@@ -1,9 +1,22 @@
 const Favorite = require('../models/models_favorites');
 const Purchase = require('../models/models_purchase');
-
+const Referral = require('../models/models_referral');
 
 class DB {
   constructor() {}
+
+  // Save referrals
+  saveReferral(emitter, receiver) {
+    const referral = new Referral();
+    referral.emitter = emitter;
+    referral.receiver = receiver;
+    return referral.save()
+      .then(referral => referral)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
+  }
 
   // Check if product exists in favorites
   checkFavorite(userId, item) {

@@ -20,8 +20,17 @@ const BOT_CONFIG = {
 
 module.exports = (controller) => {
 
-  // Handles "\Get Started & Main menue\" buttons
-  controller.hears(process.env.FIRST_VISIT, 'facebook_postback', (bot, message) => {
+  // Handles "\Get Started & Main menu!!!!!\" buttons
+  controller.hears(process.env.FIRST_VISIT, 'facebook_postback', async(bot, message) => {
+    if (message.referral) {
+      let referral = await db.saveReferral(message.referral.ref, message.sender.id);
+      if (referral && referral.code && referral.errmsg) {
+        bot.reply(message, { text: errorHelpers.dbError(referral) });
+      }
+      else {
+        bot.reply(message, { text: 'Referral link was activated' });
+      }
+    }
     bot.reply(message, {
       text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
       quick_replies: helpers.greetingMenue()
@@ -81,12 +90,14 @@ module.exports = (controller) => {
         controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
           if (err) {
             console.log(err);
+            return err;
           }
           else {
-            bot.reply(message, { text: `Send link to 3 friend, and get one product for free!` });
+            bot.reply(message, { text: `Send link or image to 3 friend, and get one product for free!` });
             bot.reply(message, { attachment: { 'type': 'image', 'payload': { url } } });
+            bot.reply(message, { text: `${process.env.BOT_URI}?ref=${message.sender.id}` });
           }
-        });
+        }, message.sender.id);
       }
       else if (arg.startsWith('show_products&page?=')) {
         let pageNumber = arg.replace('show_products&page?=', '');
@@ -185,7 +196,7 @@ module.exports = (controller) => {
           if (favorite && favorite.code && favorite.errmsg) {
             bot.reply(message, { text: errorHelpers.dbError(favorite) });
           }
-          else
+          else {
             bot.reply(message, {
               text: 'Added to favorites',
               quick_replies: [{
@@ -194,6 +205,7 @@ module.exports = (controller) => {
                 'payload': 'favorites'
               }]
             });
+          }
         }
       }
       else if (message.postback.payload.startsWith('product?=')) {
