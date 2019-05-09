@@ -30,7 +30,7 @@ class DB {
 
   // Save to referrals
   pushToReferrals(refEmitterId, newUserId) {
-    return User.update({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
+    return User.updateOne({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
       .then(result => result)
       .catch(error => {
         console.log(error);
@@ -103,8 +103,8 @@ class DB {
   }
 
   // Fetch purchases
-  getPurchases(userId) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10)
+  getPurchases(userId, prchOffset) {
+    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8)
       .then(purchases => purchases)
       .catch(error => {
         console.log(error);

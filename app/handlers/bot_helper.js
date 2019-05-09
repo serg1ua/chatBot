@@ -29,14 +29,14 @@ class BotHelpers {
   }
 
   // Quick replies constructor
-  quickRepliesBuilder(data, pageNumber) {
+  quickRepliesBuilder(data, pageNumber, modifier) {
     let page = pageNumber;
     let names = [];
     if (page > 1) {
       let back = {
         'content_type': 'text',
         'title': '<<< Prev',
-        'payload': data ? `gotoCatalogPage=${page-1}` : `show_products&page?=${page-1}`
+        'payload': modifier === 'catalog' ? `gotoCatalogPage=${page-1}` : `show_products&page?=${page-1}`
       };
       names.push(back);
     }
@@ -53,15 +53,23 @@ class BotHelpers {
     let next = {
       'content_type': 'text',
       'title': 'Next >>>',
-      'payload': data ? `gotoCatalogPage=${page+1}` : `show_products&page?=${page+1}`
+      'payload': modifier === 'catalog' ? `gotoCatalogPage=${page+1}` : `show_products&page?=${page+1}`
     };
     names.push(next);
     return names;
   }
 
   // List of purchases constructor
-  getMyPurchases(data) {
+  getMyPurchases(data, prchOffset, notNext) {
     let names = [];
+    if (prchOffset >= 8) {
+      let back = {
+        'content_type': 'text',
+        'title': '<<< Prev',
+        'payload': `prchOffset?=${prchOffset-8}`
+      };
+      names.push(back);
+    }
     data.forEach(item => {
       let content = {
         'content_type': 'text',
@@ -70,6 +78,14 @@ class BotHelpers {
       };
       names.push(content);
     });
+    if (!notNext) {
+      let next = {
+        'content_type': 'text',
+        'title': 'Next >>>',
+        'payload': `prchOffset?=${prchOffset+8}`
+      };
+      names.push(next);
+    }
     return names;
   }
 
@@ -160,13 +176,32 @@ class BotHelpers {
           'title': message,
           'image_url': 'https://2.bp.blogspot.com/-8v7aOaOmiK4/XNLOIXYnXHI/AAAAAAAACBI/oCLnsh869dIaIo5F9JKABIk-pFVoDchGgCLcBGAs/s1600/gefeliciteerd-met-de-wenskaart_53876-82116.jpg',
           'buttons': [{
-            'type': 'postback',
-            'title': 'Main menu',
-            'payload': process.env.FIRST_VISIT
-          }]
+              'type': 'postback',
+              'title': 'Get referral bonus',
+              'payload': 'ref_bonus'
+            },
+            {
+              'type': 'postback',
+              'title': 'Main menu',
+              'payload': process.env.FIRST_VISIT
+            }
+          ]
         }]
       }
     };
+  }
+
+  //Rate the product
+  rate() {
+    let replies = [];
+    for (let i = 0; i <= 10; i++) {
+      replies.push({
+        'content_type': 'text',
+        'title': `${i}`,
+        'payload': `rate?=${i}`
+      });
+    }
+    return replies;
   }
 }
 
