@@ -178,6 +178,7 @@ module.exports = (controller) => {
           }
           else {
             bot.reply(message, { text: `Send link or image to 3 friend, and get one product for free!` });
+            bot.reply(message, { text: `${process.env.BOT_URI}?ref=${message.sender.id}` });
             bot.reply(message, { attachment: { 'type': 'image', 'payload': { url } } });
           }
         }, message.sender.id);
