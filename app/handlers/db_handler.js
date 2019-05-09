@@ -30,7 +30,7 @@ class DB {
 
   // Save to referrals
   pushToReferrals(refEmitterId, newUserId) {
-    return User.update({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
+    return User.updateOne({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
       .then(result => result)
       .catch(error => {
         console.log(error);

@@ -14,6 +14,7 @@ const db = new DB();
 const BOT_CONFIG = {
   product: {},
   catalogPageNumber: 1,
+  categoryPageNumber: 1,
   productsPageNumber: 1,
   keyword: null,
   dismiss: true
@@ -26,6 +27,8 @@ module.exports = (controller) => {
 
     // Referral handling
     if (message.referral) {
+
+      // Referral users go here
       let user = await db.areYouReferralFirstTime(message.sender.id);
       if (user && user.code && user.errmsg) {
         bot.reply(message, { text: errorHelpers.dbError(user) });
@@ -47,14 +50,33 @@ module.exports = (controller) => {
             bot.reply(message, { text: errorHelpers.dbError(pushToReferrals) });
           }
           else {
-            bot.reply(message, {
-              attachment: helpers.congrats('Hi, congrats! You have activated promo link. Get some bonuses!')
-            });
+
+            // Check how many referrals you involved
+            let referrals = await db.getReferrals(message.referral.ref);
+            if (referrals && referrals.code && referrals.errmsg) {
+              bot.reply(message, { text: errorHelpers.dbError(referrals) });
+            }
+            else {
+              let refCounter = referrals.referrals.length;
+              console.log(refCounter % 3);
+              if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
+              if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
+                bot.say({
+                  channel: message.referral.ref,
+                  text: 'Congratulations, you have involved 3 new user\nNavigate to "Main menu" to get your bonus'
+                });
+                bot.reply(message, {
+                  attachment: helpers.congrats('Hi, congrats! You have activated promo link. Get some bonuses!')
+                });
+              }
+            }
           }
         }
       }
     }
     else {
+
+      // New not referral users go here
       let user = await db.areYouReferralFirstTime(message.sender.id);
       if (user && user.code && user.errmsg) {
         bot.reply(message, { text: errorHelpers.dbError(user) });
@@ -72,6 +94,8 @@ module.exports = (controller) => {
         }
       }
       else {
+
+        // Check how many referrals you involved
         let referrals = await db.getReferrals(message.sender.id);
         if (referrals && referrals.code && referrals.errmsg) {
           bot.reply(message, { text: errorHelpers.dbError(referrals) });
@@ -178,11 +202,15 @@ module.exports = (controller) => {
 
   // Handles '*'
   controller.hears('(.*)', 'message_received', async(bot, message) => {
+
+    // Search product by keyword from users input(text area, send message)
     if (!message.quick_reply && !message.postback && !message.attachments) {
       BOT_CONFIG.keyword = message.text;
       BOT_CONFIG.productsPageNumber = 1;
       productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
     }
+
+    // Handling all quick_replies
     else if (message.quick_reply) {
       if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
@@ -232,6 +260,8 @@ module.exports = (controller) => {
         }
       }
     }
+
+    // Handling all postback buttons
     if (message.postback) {
       if (message.postback.payload.startsWith('favorite=')) {
         const userId = message.sender.id;
@@ -267,6 +297,8 @@ module.exports = (controller) => {
           }
         }
       }
+
+      // Collecting data from a user and pushing product to db
       else if (message.postback.payload.startsWith('product?=')) {
         const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
         if (responseProduct && responseProduct.data && responseProduct.data.error) {
@@ -366,7 +398,7 @@ async function productGaleryBuilder(bot, message, keyword) {
       setTimeout(() => {
         bot.reply(message, {
           text: 'Navigate through list of products',
-          quick_replies: helpers.quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber)
+          quick_replies: helpers.quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber, 'product')
         });
       }, 3500);
     }, (response, convo) => {
@@ -387,7 +419,7 @@ async function catalogBuilder(bot, message, pageNumber) {
   else {
     bot.reply(message, {
       text: 'Send catalogue',
-      quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber)
+      quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber, 'catalog')
     });
   }
 }
