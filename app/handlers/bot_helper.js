@@ -149,6 +149,25 @@ class BotHelpers {
       ];
     }
   }
+
+  // Congrats
+  congrats(message) {
+    return {
+      'type': 'template',
+      'payload': {
+        'template_type': 'generic',
+        'elements': [{
+          'title': message,
+          'image_url': 'https://2.bp.blogspot.com/-8v7aOaOmiK4/XNLOIXYnXHI/AAAAAAAACBI/oCLnsh869dIaIo5F9JKABIk-pFVoDchGgCLcBGAs/s1600/gefeliciteerd-met-de-wenskaart_53876-82116.jpg',
+          'buttons': [{
+            'type': 'postback',
+            'title': 'Main menu',
+            'payload': process.env.FIRST_VISIT
+          }]
+        }]
+      }
+    };
+  }
 }
 
 module.exports = BotHelpers;

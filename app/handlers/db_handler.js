@@ -1,9 +1,52 @@
 const Favorite = require('../models/models_favorites');
 const Purchase = require('../models/models_purchase');
-
+const User = require('../models/models_user');
 
 class DB {
   constructor() {}
+
+  // Checks if you already referral
+  areYouReferralFirstTime(userId) {
+    return User.findOne({ 'userId': userId })
+      .then(user => user)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
+  }
+
+  // Save new user
+  saveNewUser(newUser) {
+    const user = new User();
+    user.userId = newUser;
+    user.referrals = [];
+    return user.save()
+      .then(user => user)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
+  }
+
+  // Save to referrals
+  pushToReferrals(refEmitterId, newUserId) {
+    return User.update({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
+      .then(result => result)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
+  }
+
+  // Get referral users
+  getReferrals(userId) {
+    return User.findOne({ 'userId': userId }, { 'referrals': 1 })
+      .then(referrals => referrals)
+      .catch(error => {
+        console.log(error);
+        return error;
+      });
+  }
 
   // Check if product exists in favorites
   checkFavorite(userId, item) {

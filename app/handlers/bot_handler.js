@@ -15,17 +15,86 @@ const BOT_CONFIG = {
   product: {},
   catalogPageNumber: 1,
   productsPageNumber: 1,
-  keyword: null
+  keyword: null,
+  dismiss: true
 };
 
 module.exports = (controller) => {
 
-  // Handles "\Get Started & Main menue\" buttons
-  controller.hears(process.env.FIRST_VISIT, 'facebook_postback', (bot, message) => {
-    bot.reply(message, {
-      text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
-      quick_replies: helpers.greetingMenue()
-    });
+  // Handles "\Get Started & Main menu!!!!!\" buttons
+  controller.hears(process.env.FIRST_VISIT, 'facebook_postback', async(bot, message) => {
+
+    // Referral handling
+    if (message.referral) {
+      let user = await db.areYouReferralFirstTime(message.sender.id);
+      if (user && user.code && user.errmsg) {
+        bot.reply(message, { text: errorHelpers.dbError(user) });
+      }
+      else if (user) {
+        bot.reply(message, {
+          text: 'You are already registeted',
+          quick_replies: helpers.greetingMenue()
+        });
+      }
+      else {
+        let newRefUser = await db.saveNewUser(message.sender.id);
+        if (newRefUser && newRefUser.code && newRefUser.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(newRefUser) });
+        }
+        else {
+          let pushToReferrals = await db.pushToReferrals(message.referral.ref, message.sender.id);
+          if (pushToReferrals && pushToReferrals.code && pushToReferrals.errmsg) {
+            bot.reply(message, { text: errorHelpers.dbError(pushToReferrals) });
+          }
+          else {
+            bot.reply(message, {
+              attachment: helpers.congrats('Hi, congrats! You have activated promo link. Get some bonuses!')
+            });
+          }
+        }
+      }
+    }
+    else {
+      let user = await db.areYouReferralFirstTime(message.sender.id);
+      if (user && user.code && user.errmsg) {
+        bot.reply(message, { text: errorHelpers.dbError(user) });
+      }
+      else if (!user) {
+        let newUser = await db.saveNewUser(message.sender.id);
+        if (newUser && newUser.code && newUser.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(newUser) });
+        }
+        else {
+          bot.reply(message, {
+            text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
+            quick_replies: helpers.greetingMenue()
+          });
+        }
+      }
+      else {
+        let referrals = await db.getReferrals(message.sender.id);
+        if (referrals && referrals.code && referrals.errmsg) {
+          bot.reply(message, { text: errorHelpers.dbError(referrals) });
+        }
+        else {
+          let refCounter = referrals.referrals.length;
+          console.log(refCounter % 3);
+          if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
+          if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
+            BOT_CONFIG.dismiss = false;
+            bot.reply(message, {
+              attachment: helpers.congrats('Congratulations, you have involved 3 new user. Get a product for free!')
+            });
+          }
+          else {
+            bot.reply(message, {
+              text: 'Welcome back! Nice to see you again!',
+              quick_replies: helpers.greetingMenue()
+            });
+          }
+        }
+      }
+    }
   });
 
   // Handles \'Send catalogue\' button
@@ -81,12 +150,13 @@ module.exports = (controller) => {
         controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
           if (err) {
             console.log(err);
+            return err;
           }
           else {
-            bot.reply(message, { text: `Send link to 3 friend, and get one product for free!` });
+            bot.reply(message, { text: `Send link or image to 3 friend, and get one product for free!` });
             bot.reply(message, { attachment: { 'type': 'image', 'payload': { url } } });
           }
-        });
+        }, message.sender.id);
       }
       else if (arg.startsWith('show_products&page?=')) {
         let pageNumber = arg.replace('show_products&page?=', '');
@@ -185,7 +255,7 @@ module.exports = (controller) => {
           if (favorite && favorite.code && favorite.errmsg) {
             bot.reply(message, { text: errorHelpers.dbError(favorite) });
           }
-          else
+          else {
             bot.reply(message, {
               text: 'Added to favorites',
               quick_replies: [{
@@ -194,6 +264,7 @@ module.exports = (controller) => {
                 'payload': 'favorites'
               }]
             });
+          }
         }
       }
       else if (message.postback.payload.startsWith('product?=')) {
