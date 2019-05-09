@@ -259,6 +259,11 @@ module.exports = (controller) => {
           });
         }
       }
+      else if (message.quick_reply.payload.startsWith('rate?=')) {
+        bot.reply(message, {
+          text: 'Thank you!'
+        });
+      }
     }
 
     // Handling all postback buttons
@@ -361,6 +366,14 @@ module.exports = (controller) => {
             }
             else {
               convo.say('Our courier will contact you within 2 hours');
+
+              // Mock 2 days, but not really
+              setTimeout(() => {
+                bot.reply(message, {
+                  text: 'Please rate the product\nHow do you estimate, recommend our product to your friends?',
+                  quick_replies: helpers.rate()
+                });
+              }, 5000);
               convo.next();
             }
           }

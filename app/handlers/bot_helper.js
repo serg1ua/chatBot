@@ -174,6 +174,19 @@ class BotHelpers {
       }
     };
   }
+
+  //Rate the product
+  rate() {
+    let replies = [];
+    for (let i = 0; i <= 10; i++) {
+      replies.push({
+        'content_type': 'text',
+        'title': `${i}`,
+        'payload': `rate?=${i}`
+      });
+    }
+    return replies;
+  }
 }
 
 module.exports = BotHelpers;
