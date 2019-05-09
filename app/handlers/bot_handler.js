@@ -132,19 +132,7 @@ module.exports = (controller) => {
     if (message.quick_reply) {
       let arg = message.quick_reply.payload;
       if (arg === 'my_purchases') {
-        let purchases = await db.getPurchases(message.sender.id);
-        if (purchases && purchases.code && purchases.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(purchases) });
-        }
-        else if (!purchases.length) {
-          bot.reply(message, { text: 'You have no purchases yet' });
-        }
-        else {
-          bot.reply(message, {
-            text: 'Purchases list',
-            quick_replies: helpers.getMyPurchases(purchases)
-          });
-        }
+        getMyPurchases(bot, message, 0);
       }
       else if (arg === 'favorites') {
         let list = await db.getFavorites(message.sender.id);
@@ -197,6 +185,9 @@ module.exports = (controller) => {
       else if (arg.startsWith('gotoCatalogPage=')) {
         BOT_CONFIG.catalogPageNumber = +arg.replace('gotoCatalogPage=', '');
         catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
+      }
+      else if (arg.startsWith('prchOffset?=')) {
+        getMyPurchases(bot, message, +arg.replace('prchOffset?=', ''));
       }
     }
   });
@@ -434,6 +425,27 @@ async function catalogBuilder(bot, message, pageNumber) {
     bot.reply(message, {
       text: 'Send catalogue',
       quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber, 'catalog')
+    });
+  }
+}
+
+///// Get purchases /////
+async function getMyPurchases(bot, message, offSet) {
+  let prchOffset = 0 + offSet;
+  let notNext = false;
+  console.log(prchOffset);
+  let purchases = await db.getPurchases(message.sender.id, prchOffset);
+  if (purchases.length < 8) notNext = true;
+  if (purchases && purchases.code && purchases.errmsg) {
+    bot.reply(message, { text: errorHelpers.dbError(purchases) });
+  }
+  else if (!purchases.length) {
+    bot.reply(message, { text: 'You have no purchases yet' });
+  }
+  else {
+    bot.reply(message, {
+      text: 'Purchases list',
+      quick_replies: helpers.getMyPurchases(purchases, prchOffset, notNext)
     });
   }
 }

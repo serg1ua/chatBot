@@ -103,8 +103,8 @@ class DB {
   }
 
   // Fetch purchases
-  getPurchases(userId) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10)
+  getPurchases(userId, prchOffset) {
+    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8)
       .then(purchases => purchases)
       .catch(error => {
         console.log(error);

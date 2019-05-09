@@ -60,8 +60,16 @@ class BotHelpers {
   }
 
   // List of purchases constructor
-  getMyPurchases(data) {
+  getMyPurchases(data, prchOffset, notNext) {
     let names = [];
+    if (prchOffset >= 8) {
+      let back = {
+        'content_type': 'text',
+        'title': '<<< Prev',
+        'payload': `prchOffset?=${prchOffset-8}`
+      };
+      names.push(back);
+    }
     data.forEach(item => {
       let content = {
         'content_type': 'text',
@@ -70,6 +78,14 @@ class BotHelpers {
       };
       names.push(content);
     });
+    if (!notNext) {
+      let next = {
+        'content_type': 'text',
+        'title': 'Next >>>',
+        'payload': `prchOffset?=${prchOffset+8}`
+      };
+      names.push(next);
+    }
     return names;
   }
 
