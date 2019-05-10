@@ -131,32 +131,12 @@ module.exports = (controller) => {
   controller.hears(['My purchases', 'Shop', 'Favorites', 'Invite a friend', 'Next >>>', '<<< Prev'], 'message_received', async(bot, message) => {
     if (message.quick_reply) {
       let arg = message.quick_reply.payload;
+      console.log(arg);
       if (arg === 'my_purchases') {
         getMyPurchases(bot, message, 0);
       }
       else if (arg === 'favorites') {
-        let list = await db.getFavorites(message.sender.id);
-        if (list && list.code && list.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(list) });
-        }
-        else if (!list.length) {
-          bot.reply(message, { text: 'You have nothing in favorites yet' });
-        }
-        else {
-          bot.startConversation(message, (err, convo) => {
-            convo.say({
-              attachment: {
-                'type': 'template',
-                'payload': {
-                  'template_type': 'generic',
-                  'elements': helpers.createFavoriteGalery(list)
-                }
-              }
-            });
-          }, (response, convo) => {
-            convo.next();
-          });
-        }
+        getMyFavorites(bot, message, 1);
       }
       else if (arg === 'invite') {
         controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
@@ -188,6 +168,9 @@ module.exports = (controller) => {
       }
       else if (arg.startsWith('prchOffset?=')) {
         getMyPurchases(bot, message, +arg.replace('prchOffset?=', ''));
+      }
+      else if (arg.startsWith('goToFavoritePage?=')) {
+        getMyFavorites(bot, message, +arg.replace('goToFavoritePage?=', ''));
       }
     }
   });
@@ -400,12 +383,7 @@ async function productGaleryBuilder(bot, message, keyword) {
           }
         }
       });
-      setTimeout(() => {
-        bot.reply(message, {
-          text: 'Navigate through list of products',
-          quick_replies: helpers.quickRepliesBuilder(false, BOT_CONFIG.productsPageNumber, 'product')
-        });
-      }, 3500);
+      prevNext(bot, message, 'product', BOT_CONFIG.productsPageNumber, false);
     }, (response, convo) => {
       convo.next();
     });
@@ -424,7 +402,7 @@ async function catalogBuilder(bot, message, pageNumber) {
   else {
     bot.reply(message, {
       text: 'Send catalogue',
-      quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber, 'catalog')
+      quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber, 'catalog', false)
     });
   }
 }
@@ -433,7 +411,6 @@ async function catalogBuilder(bot, message, pageNumber) {
 async function getMyPurchases(bot, message, offSet) {
   let prchOffset = 0 + offSet;
   let notNext = false;
-  console.log(prchOffset);
   let purchases = await db.getPurchases(message.sender.id, prchOffset);
   if (purchases.length < 8) notNext = true;
   if (purchases && purchases.code && purchases.errmsg) {
@@ -448,4 +425,44 @@ async function getMyPurchases(bot, message, offSet) {
       quick_replies: helpers.getMyPurchases(purchases, prchOffset, notNext)
     });
   }
+}
+
+///// Get favorites /////
+async function getMyFavorites(bot, message, pageNumber) {
+  console.log('//////////', pageNumber);
+  let notNext = false;
+  let list = await db.getFavorites(message.sender.id, pageNumber);
+  if (list.length < 10) notNext = true;
+  if (list && list.code && list.errmsg) {
+    bot.reply(message, { text: errorHelpers.dbError(list) });
+  }
+  else if (!list.length) {
+    bot.reply(message, { text: 'You have nothing in favorites yet' });
+  }
+  else {
+    bot.startConversation(message, (err, convo) => {
+      convo.say({
+        attachment: {
+          'type': 'template',
+          'payload': {
+            'template_type': 'generic',
+            'elements': helpers.createFavoriteGalery(list)
+          }
+        }
+      });
+      prevNext(bot, message, 'favorite', pageNumber, notNext);
+    }, (response, convo) => {
+      convo.next();
+    });
+  }
+}
+
+///// Prev Next navigation
+function prevNext(bot, message, modifier, pageNumber, notNext) {
+  setTimeout(() => {
+    bot.reply(message, {
+      text: 'Use navigation buttons below',
+      quick_replies: helpers.quickRepliesBuilder(false, pageNumber, modifier, notNext)
+    });
+  }, 3500);
 }
