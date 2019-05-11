@@ -25,6 +25,9 @@ module.exports = (controller) => {
   // Handles "\Get Started & Main menu!!!!!\" buttons
   controller.hears(process.env.FIRST_VISIT, 'facebook_postback', async(bot, message) => {
 
+    // Fetch FB user info
+    const FBuser = await bot.getMessageUser(message);
+
     // Referral handling
     if (message.referral) {
 
@@ -35,7 +38,7 @@ module.exports = (controller) => {
       }
       else if (user) {
         bot.reply(message, {
-          text: 'You are already registeted',
+          text: 'You are already registeted!\nYou cannot use referral twice!',
           quick_replies: helpers.greetingMenue()
         });
       }
@@ -52,24 +55,7 @@ module.exports = (controller) => {
           else {
 
             // Check how many referrals you involved
-            let referrals = await db.getReferrals(message.referral.ref);
-            if (referrals && referrals.code && referrals.errmsg) {
-              bot.reply(message, { text: errorHelpers.dbError(referrals) });
-            }
-            else {
-              let refCounter = referrals.referrals.length;
-              console.log(refCounter % 3);
-              if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
-              if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
-                bot.say({
-                  channel: message.referral.ref,
-                  text: 'Congratulations, you have involved 3 new user\nNavigate to "Main menu" to get your bonus'
-                });
-                bot.reply(message, {
-                  attachment: helpers.congrats('Hi, congrats! You have activated promo link. Get some bonuses!')
-                });
-              }
-            }
+            referrals(FBuser, bot, message, 'ref');
           }
         }
       }
@@ -88,7 +74,7 @@ module.exports = (controller) => {
         }
         else {
           bot.reply(message, {
-            text: 'Hi! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item',
+            text: `Hi, ${FBuser.first_name}! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item`,
             quick_replies: helpers.greetingMenue()
           });
         }
@@ -96,27 +82,7 @@ module.exports = (controller) => {
       else {
 
         // Check how many referrals you involved
-        let referrals = await db.getReferrals(message.sender.id);
-        if (referrals && referrals.code && referrals.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(referrals) });
-        }
-        else {
-          let refCounter = referrals.referrals.length;
-          console.log(refCounter % 3);
-          if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
-          if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
-            BOT_CONFIG.dismiss = false;
-            bot.reply(message, {
-              attachment: helpers.congrats('Congratulations, you have involved 3 new user. Get a product for free!')
-            });
-          }
-          else {
-            bot.reply(message, {
-              text: 'Welcome back! Nice to see you again!',
-              quick_replies: helpers.greetingMenue()
-            });
-          }
-        }
+        referrals(FBuser, bot, message, 'notRef');
       }
     }
   });
@@ -193,18 +159,14 @@ module.exports = (controller) => {
           bot.reply(message, { text: errorHelpers.bestBuyError(responseProduct) });
         }
         else {
-          bot.startConversation(message, (err, convo) => {
-            convo.ask({
-              attachment: {
-                'type': 'template',
-                'payload': {
-                  'template_type': 'generic',
-                  'elements': helpers.createProductsGalery([responseProduct], true)
-                }
+          bot.reply(message, {
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': helpers.createProductsGalery([responseProduct], true)
               }
-            });
-          }, (response, convo) => {
-            convo.next();
+            }
           });
         }
       }
@@ -219,18 +181,14 @@ module.exports = (controller) => {
           });
         }
         else {
-          bot.startConversation(message, function (err, convo) {
-            convo.ask({
-              attachment: {
-                'type': 'template',
-                'payload': {
-                  'template_type': 'generic',
-                  'elements': helpers.createProductsGalery(products.products, false)
-                }
+          bot.reply(message, {
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': helpers.createProductsGalery(products.products, false)
               }
-            });
-          }, (response, convo) => {
-            convo.next();
+            }
           });
         }
       }
@@ -290,32 +248,24 @@ module.exports = (controller) => {
         else {
           BOT_CONFIG.product.sku = responseProduct.sku;
           BOT_CONFIG.product.userId = message.sender.id;
-          bot.startConversation(message, (err, convo) => {
-            convo.ask({
-              attachment: {
-                'type': 'template',
-                'payload': {
-                  'template_type': 'generic',
-                  'elements': helpers.createProductsGalery([responseProduct], false)
-                }
+          bot.reply(message, {
+            attachment: {
+              'type': 'template',
+              'payload': {
+                'template_type': 'generic',
+                'elements': helpers.createProductsGalery([responseProduct], false)
               }
-            });
-          }, (response, convo) => {
-            convo.next();
+            }
           });
         }
       }
       else if (message.postback.payload === process.env.SHARE_NUMBER) {
-        bot.startConversation(message, (err, convo) => {
-          convo.ask({
-            text: 'Share your phone number',
-            quick_replies: [{
-              'content_type': 'user_phone_number'
-            }],
-            payload: 'user_phone'
-          });
-        }, (response, convo) => {
-          convo.next();
+        bot.reply(message, {
+          text: 'Share your phone number',
+          quick_replies: [{
+            'content_type': 'user_phone_number'
+          }],
+          payload: 'user_phone'
         });
       }
     }
@@ -363,6 +313,44 @@ module.exports = (controller) => {
   });
 };
 
+///// Referrals /////
+async function referrals(FBuser, bot, message, keyword) {
+  let referrals = await db.getReferrals(keyword === 'ref' ? message.referral.ref : message.sender.id);
+  if (referrals && referrals.code && referrals.errmsg) {
+    bot.reply(message, { text: errorHelpers.dbError(referrals) });
+  }
+  else {
+    let refCounter = referrals.referrals.length;
+    if (keyword === 'ref') {
+      if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
+      if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
+        bot.say({
+          channel: message.referral.ref,
+          text: `Congratulations, you have involved 3 new user\nNavigate to "Main menu" to get your bonus`
+        });
+      }
+      bot.reply(message, {
+        attachment: helpers.congrats(`Hi, ${FBuser.first_name}, congrats! You have activated promo link. Get some bonuses!`)
+      });
+    }
+    else {
+      if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
+      if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
+        BOT_CONFIG.dismiss = false;
+        bot.reply(message, {
+          attachment: helpers.congrats(`Congratulations, ${FBuser.first_name}, you have involved 3 new user. Get a product for free!`)
+        });
+      }
+      else {
+        bot.reply(message, {
+          text: `Welcome back, ${FBuser.first_name}! Nice to see you again!`,
+          quick_replies: helpers.greetingMenue()
+        });
+      }
+    }
+  }
+}
+
 ///// Galery builder /////
 async function productGaleryBuilder(bot, message, keyword) {
   let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
@@ -373,20 +361,16 @@ async function productGaleryBuilder(bot, message, keyword) {
     bot.reply(message, { text: 'There are no products in this collection' });
   }
   else {
-    bot.startConversation(message, (err, convo) => {
-      convo.ask({
-        attachment: {
-          'type': 'template',
-          'payload': {
-            'template_type': 'generic',
-            'elements': helpers.createProductsGalery(collection.products, false)
-          }
+    bot.reply(message, {
+      attachment: {
+        'type': 'template',
+        'payload': {
+          'template_type': 'generic',
+          'elements': helpers.createProductsGalery(collection.products, false)
         }
-      });
-      prevNext(bot, message, 'product', BOT_CONFIG.productsPageNumber, false);
-    }, (response, convo) => {
-      convo.next();
+      }
     });
+    prevNext(bot, message, 'product', BOT_CONFIG.productsPageNumber, false);
   }
 }
 
@@ -429,7 +413,6 @@ async function getMyPurchases(bot, message, offSet) {
 
 ///// Get favorites /////
 async function getMyFavorites(bot, message, pageNumber) {
-  console.log('//////////', pageNumber);
   let notNext = false;
   let list = await db.getFavorites(message.sender.id, pageNumber);
   if (list.length < 10) notNext = true;
@@ -440,20 +423,16 @@ async function getMyFavorites(bot, message, pageNumber) {
     bot.reply(message, { text: 'You have nothing in favorites yet' });
   }
   else {
-    bot.startConversation(message, (err, convo) => {
-      convo.say({
-        attachment: {
-          'type': 'template',
-          'payload': {
-            'template_type': 'generic',
-            'elements': helpers.createFavoriteGalery(list)
-          }
+    bot.reply(message, {
+      attachment: {
+        'type': 'template',
+        'payload': {
+          'template_type': 'generic',
+          'elements': helpers.createFavoriteGalery(list)
         }
-      });
-      prevNext(bot, message, 'favorite', pageNumber, notNext);
-    }, (response, convo) => {
-      convo.next();
+      }
     });
+    prevNext(bot, message, 'favorite', pageNumber, notNext);
   }
 }
 
