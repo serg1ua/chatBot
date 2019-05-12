@@ -3,13 +3,15 @@
 class ErrorHelpers {
 
   // Db error helper
-  dbError(data) {
-    return `Error occurred while processing your request!\nERROR ${data.code} ${data.errmsg}`;
+  dbError(error) {
+    console.log(error);
+    return `Error occurred while processing your request!\nERROR ${error.code} ${error.errmsg}`;
   }
 
   // BestBuy error helper
-  bestBuyError(data) {
-    return `Error occurred while processing your request\nERROR ${data.data.error.status}`;
+  bestBuyError(error) {
+    console.log(error);
+    return `Error occurred while processing your request\nERROR ${error.status} ${error.statusText}`;
   }
 }
 
