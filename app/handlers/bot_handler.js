@@ -27,7 +27,11 @@ module.exports = (controller) => {
   controller.hears(process.env.FIRST_VISIT, 'facebook_postback', async(bot, message) => {
 
     // Fetch FB user info
-    const FBuser = await bot.getMessageUser(message);
+    let [err, FBuser] = await to(bot.getMessageUser(message));
+    if (err) {
+      console.log(err);
+      FBuser = '';
+    }
 
     // Referral handling
     if (message.referral) {
