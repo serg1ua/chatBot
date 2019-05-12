@@ -32,7 +32,7 @@ module.exports = (controller) => {
     if (message.referral) {
 
       // Referral users go here
-      let user = await db.areYouReferralFirstTime(message.sender.id);
+      const user = await db.areYouReferralFirstTime(message.sender.id);
       if (user && user.code && user.errmsg) {
         bot.reply(message, { text: errorHelpers.dbError(user) });
       }
@@ -43,12 +43,12 @@ module.exports = (controller) => {
         });
       }
       else {
-        let newRefUser = await db.saveNewUser(message.sender.id);
+        const newRefUser = await db.saveNewUser(message.sender.id);
         if (newRefUser && newRefUser.code && newRefUser.errmsg) {
           bot.reply(message, { text: errorHelpers.dbError(newRefUser) });
         }
         else {
-          let pushToReferrals = await db.pushToReferrals(message.referral.ref, message.sender.id);
+          const pushToReferrals = await db.pushToReferrals(message.referral.ref, message.sender.id);
           if (pushToReferrals && pushToReferrals.code && pushToReferrals.errmsg) {
             bot.reply(message, { text: errorHelpers.dbError(pushToReferrals) });
           }
@@ -63,12 +63,12 @@ module.exports = (controller) => {
     else {
 
       // New not referral users go here
-      let user = await db.areYouReferralFirstTime(message.sender.id);
+      const user = await db.areYouReferralFirstTime(message.sender.id);
       if (user && user.code && user.errmsg) {
         bot.reply(message, { text: errorHelpers.dbError(user) });
       }
       else if (!user) {
-        let newUser = await db.saveNewUser(message.sender.id);
+        const newUser = await db.saveNewUser(message.sender.id);
         if (newUser && newUser.code && newUser.errmsg) {
           bot.reply(message, { text: errorHelpers.dbError(newUser) });
         }
@@ -94,17 +94,17 @@ module.exports = (controller) => {
   });
 
   // Handles \'My purchases\', \'Shop\', \'Favorites\', \'Invite a friend\' messages
-  controller.hears(['My purchases', 'Shop', 'Favorites', 'Invite a friend', 'Next >>>', '<<< Prev'], 'message_received', async(bot, message) => {
+  controller.hears(['My purchases', 'Favorites', 'Invite a friend'], 'message_received', async(bot, message) => {
     if (message.quick_reply) {
-      let arg = message.quick_reply.payload;
-      console.log(arg);
-      if (arg === 'my_purchases') {
+      const arg = message.quick_reply.payload;
+      switch (arg) {
+      case 'my_purchases':
         getMyPurchases(bot, message, 0);
-      }
-      else if (arg === 'favorites') {
+        break;
+      case 'favorites':
         getMyFavorites(bot, message, 1);
-      }
-      else if (arg === 'invite') {
+        break;
+      case 'invite':
         controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
           if (err) {
             console.log(err);
@@ -117,31 +117,39 @@ module.exports = (controller) => {
           }
         }, message.sender.id);
       }
-      else if (arg.startsWith('show_products&page?=')) {
-        let pageNumber = arg.replace('show_products&page?=', '');
-        if (pageNumber === '0') {
+    }
+  });
+
+  // Handels Next>>>, <<<Prev
+  controller.hears(['Shop', 'Next >>>', '<<< Prev'], 'message_received', async(bot, message) => {
+    if (message.quick_reply) {
+      const [arg, page] = message.quick_reply.payload.split('=');
+      switch (arg) {
+      case 'show_products&page?':
+        if (page === '0') {
           BOT_CONFIG.keyword = null;
           BOT_CONFIG.productsPageNumber = 1;
         }
         else {
-          BOT_CONFIG.productsPageNumber = +pageNumber;
+          BOT_CONFIG.productsPageNumber = +page;
         }
         productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
-      }
-      else if (arg.startsWith('gotoCatalogPage=')) {
-        BOT_CONFIG.catalogPageNumber = +arg.replace('gotoCatalogPage=', '');
+        break;
+      case 'gotoCatalogPage':
+        BOT_CONFIG.catalogPageNumber = +page;
         catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
-      }
-      else if (arg.startsWith('prchOffset?=')) {
-        getMyPurchases(bot, message, +arg.replace('prchOffset?=', ''));
-      }
-      else if (arg.startsWith('goToFavoritePage?=')) {
-        getMyFavorites(bot, message, +arg.replace('goToFavoritePage?=', ''));
+        break;
+      case 'prchOffset?':
+        getMyPurchases(bot, message, +page);
+        break;
+      case 'goToFavoritePage?':
+        getMyFavorites(bot, message, +page);
+        break;
       }
     }
   });
 
-  // Handles '*'
+  // Handles all the rest
   controller.hears('(.*)', 'message_received', async(bot, message) => {
 
     // Search product by keyword from users input(text area, send message)
