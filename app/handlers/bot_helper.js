@@ -29,14 +29,16 @@ class BotHelpers {
   }
 
   // Quick replies constructor
-  quickRepliesBuilder(data, pageNumber, modifier) {
+  quickRepliesBuilder(data, pageNumber, modifier, notNext) {
     let page = pageNumber;
     let names = [];
     if (page > 1) {
       let back = {
         'content_type': 'text',
         'title': '<<< Prev',
-        'payload': modifier === 'catalog' ? `gotoCatalogPage=${page-1}` : `show_products&page?=${page-1}`
+        'payload': modifier === 'catalog' ?
+          `gotoCatalogPage=${page-1}` : modifier === 'favorite' ?
+          `goToFavoritePage?=${page-1}` : `show_products&page?=${page-1}`
       };
       names.push(back);
     }
@@ -50,12 +52,16 @@ class BotHelpers {
         names.push(content);
       });
     }
-    let next = {
-      'content_type': 'text',
-      'title': 'Next >>>',
-      'payload': modifier === 'catalog' ? `gotoCatalogPage=${page+1}` : `show_products&page?=${page+1}`
-    };
-    names.push(next);
+    if (!notNext) {
+      let next = {
+        'content_type': 'text',
+        'title': 'Next >>>',
+        'payload': modifier === 'catalog' ?
+          `gotoCatalogPage=${page+1}` : modifier === 'favorite' ?
+          `goToFavoritePage?=${page+1}` : `show_products&page?=${page+1}`
+      };
+      names.push(next);
+    }
     return names;
   }
 

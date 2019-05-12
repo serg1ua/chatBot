@@ -77,8 +77,8 @@ class DB {
   }
 
   // Fetch list of favoretes from DB
-  getFavorites(userId) {
-    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).limit(10)
+  getFavorites(userId, pageNumber) {
+    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip((pageNumber - 1) * 10).limit(10)
       .then(favorites => favorites)
       .catch(error => {
         console.log(error);
