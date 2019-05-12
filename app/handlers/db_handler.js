@@ -7,12 +7,7 @@ class DB {
 
   // Checks if you already referral
   areYouReferralFirstTime(userId) {
-    return User.findOne({ 'userId': userId })
-      .then(user => user)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return User.findOne({ 'userId': userId });
   }
 
   // Save new user
@@ -20,43 +15,23 @@ class DB {
     const user = new User();
     user.userId = newUser;
     user.referrals = [];
-    return user.save()
-      .then(user => user)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return user.save();
   }
 
   // Save to referrals
   pushToReferrals(refEmitterId, newUserId) {
-    return User.updateOne({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } })
-      .then(result => result)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return User.updateOne({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } });
   }
 
   // Get referral users
   getReferrals(userId) {
-    return User.findOne({ 'userId': userId }, { 'referrals': 1 })
-      .then(referrals => referrals)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return User.findOne({ 'userId': userId }, { 'referrals': 1 });
   }
 
   // Check if product exists in favorites
   checkFavorite(userId, item) {
     const sku = item.split('&')[0];
-    return Favorite.findOne({ 'userId': userId, 'sku': sku })
-      .then(favorite => favorite)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return Favorite.findOne({ 'userId': userId, 'sku': sku });
   }
 
   // Add new product to favorites
@@ -68,22 +43,12 @@ class DB {
     favorite.image = items[2];
     favorite.userId = userId;
     favorite.timestamp = timestamp;
-    return favorite.save()
-      .then(favorite => favorite)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return favorite.save();
   }
 
   // Fetch list of favoretes from DB
   getFavorites(userId, pageNumber) {
-    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip((pageNumber - 1) * 10).limit(10)
-      .then(favorites => favorites)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip((pageNumber - 1) * 10).limit(10);
   }
 
   // Save purchased
@@ -94,22 +59,12 @@ class DB {
     purchase.phone = product.phone;
     purchase.coordinates = product.coordinates;
     purchase.timestamp = product.timestamp;
-    return purchase.save()
-      .then(purchase => purchase)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return purchase.save();
   }
 
   // Fetch purchases
   getPurchases(userId, prchOffset) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8)
-      .then(purchases => purchases)
-      .catch(error => {
-        console.log(error);
-        return error;
-      });
+    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8);
   }
 }
 

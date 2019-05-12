@@ -3,7 +3,7 @@
 class BotHelpers {
 
   // Greeting menu
-  greetingMenue() {
+  greetingMenu() {
     let greeteng = [{
         'content_type': 'text',
         'title': 'My purchases',
@@ -105,7 +105,9 @@ class BotHelpers {
       let content = {
         'title': item.name,
         'image_url': item.images[0].href,
-        'subtitle': item.plot ? item.plot : item.shortDescription,
+        'subtitle': item.plot ?
+          `Price: $${item.salePrice}\n${item.plot}` : item.shortDescription ?
+          `Price: $${item.salePrice}\n${item.shortDescription}` : `Price: $${item.salePrice}`,
         'buttons': this.createProductsButtons(data, item, marker)
       };
       names.push(content);
@@ -165,7 +167,7 @@ class BotHelpers {
         },
         {
           'type': 'postback',
-          'title': 'Main menue',
+          'title': 'Main menu',
           'payload': process.env.FIRST_VISIT
         }
       ];

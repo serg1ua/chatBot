@@ -1,5 +1,6 @@
 ///// Bot handlers /////
 
+const to = require('await-to-js').default;
 const BestBuy = require('./best_buy_handler');
 const DB = require('./db_handler');
 const Helpers = require('./bot_helper');
@@ -32,25 +33,25 @@ module.exports = (controller) => {
     if (message.referral) {
 
       // Referral users go here
-      const user = await db.areYouReferralFirstTime(message.sender.id);
-      if (user && user.code && user.errmsg) {
-        bot.reply(message, { text: errorHelpers.dbError(user) });
+      const [err, user] = await to(db.areYouReferralFirstTime(message.sender.id));
+      if (err) {
+        bot.reply(message, { text: errorHelpers.dbError(err) });
       }
       else if (user) {
         bot.reply(message, {
-          text: 'You are already registeted!\nYou cannot use referral twice!',
-          quick_replies: helpers.greetingMenue()
+          text: 'You are already registered!\nYou cannot use referral twice!',
+          quick_replies: helpers.greetingMenu()
         });
       }
       else {
-        const newRefUser = await db.saveNewUser(message.sender.id);
-        if (newRefUser && newRefUser.code && newRefUser.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(newRefUser) });
+        const [err, newRefUser] = await to(db.saveNewUser(message.sender.id));
+        if (err) {
+          bot.reply(message, { text: errorHelpers.dbError(err) });
         }
         else {
-          const pushToReferrals = await db.pushToReferrals(message.referral.ref, message.sender.id);
-          if (pushToReferrals && pushToReferrals.code && pushToReferrals.errmsg) {
-            bot.reply(message, { text: errorHelpers.dbError(pushToReferrals) });
+          const [err, pushToReferrals] = await to(db.pushToReferrals(message.referral.ref, message.sender.id));
+          if (err) {
+            bot.reply(message, { text: errorHelpers.dbError(err) });
           }
           else {
 
@@ -63,19 +64,19 @@ module.exports = (controller) => {
     else {
 
       // New not referral users go here
-      const user = await db.areYouReferralFirstTime(message.sender.id);
-      if (user && user.code && user.errmsg) {
-        bot.reply(message, { text: errorHelpers.dbError(user) });
+      const [err, user] = await to(db.areYouReferralFirstTime(message.sender.id));
+      if (err) {
+        bot.reply(message, { text: errorHelpers.dbError(err) });
       }
       else if (!user) {
-        const newUser = await db.saveNewUser(message.sender.id);
-        if (newUser && newUser.code && newUser.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(newUser) });
+        const [err, newUser] = await to(db.saveNewUser(message.sender.id));
+        if (err) {
+          bot.reply(message, { text: errorHelpers.dbError(err) });
         }
         else {
           bot.reply(message, {
             text: `Hi, ${FBuser.first_name}! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item`,
-            quick_replies: helpers.greetingMenue()
+            quick_replies: helpers.greetingMenu()
           });
         }
       }
@@ -149,7 +150,7 @@ module.exports = (controller) => {
     }
   });
 
-  // Handles all the rest
+  // Handles '*'
   controller.hears('(.*)', 'message_received', async(bot, message) => {
 
     // Search product by keyword from users input(text area, send message)
@@ -160,11 +161,13 @@ module.exports = (controller) => {
     }
 
     // Handling all quick_replies
-    else if (message.quick_reply) {
-      if (message.quick_reply.payload.startsWith('product_in_purchased?=')) {
-        const responseProduct = await bestBuy.getProductDetales(message.quick_reply.payload.replace('product_in_purchased?=', ''));
-        if (responseProduct && responseProduct.data && responseProduct.data.error) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(responseProduct) });
+    if (message.quick_reply) {
+      const [arg, payload] = message.quick_reply.payload.split('=');
+      switch (arg) {
+      case 'product_in_purchased?':
+        const [error, responseProduct] = await to(bestBuy.getProductDetales(payload));
+        if (error) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(error) });
         }
         else {
           bot.reply(message, {
@@ -177,15 +180,15 @@ module.exports = (controller) => {
             }
           });
         }
-      }
-      else if (message.quick_reply.payload.startsWith('category?=')) {
-        let products = await bestBuy.getProductsFromCatalog(message.quick_reply.payload.replace('category?=', ''));
-        if (products && products.data && products.data.error) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(products) });
+        break;
+      case 'category?':
+        const [err, products] = await to(bestBuy.getProductsFromCatalog(payload));
+        if (err) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(err) });
         }
         else if (!products.products.length) {
           bot.reply(message, {
-            text: 'This catalog is currently empty, pllease try another',
+            text: 'This catalog is currently empty, please try another',
           });
         }
         else {
@@ -199,22 +202,21 @@ module.exports = (controller) => {
             }
           });
         }
-      }
-      else if (message.quick_reply.payload.startsWith('rate?=')) {
-        bot.reply(message, {
-          text: 'Thank you!'
-        });
+        break;
+      case 'rate?':
+        bot.reply(message, { text: 'Thank you!' });
       }
     }
 
     // Handling all postback buttons
     if (message.postback) {
-      if (message.postback.payload.startsWith('favorite=')) {
+      const [arg, payload] = message.postback.payload.split('=');
+      switch (arg) {
+      case 'favorite':
         const userId = message.sender.id;
-        const item = message.postback.payload.replace('favorite=', '');
-        let favorite = await db.checkFavorite(userId, item);
-        if (favorite && favorite.code && favorite.errmsg) {
-          bot.reply(message, { text: errorHelpers.dbError(favorite) });
+        let [err, favorite] = await to(db.checkFavorite(userId, payload));
+        if (err) {
+          bot.reply(message, { text: errorHelpers.dbError(err) });
         }
         else if (favorite) {
           bot.reply(message, {
@@ -227,9 +229,9 @@ module.exports = (controller) => {
           });
         }
         else if (!favorite) {
-          favorite = await db.addNewFavorite(userId, item, message.timestamp);
-          if (favorite && favorite.code && favorite.errmsg) {
-            bot.reply(message, { text: errorHelpers.dbError(favorite) });
+          [err, favorite] = await to(db.addNewFavorite(userId, payload, message.timestamp));
+          if (err) {
+            bot.reply(message, { text: errorHelpers.dbError(err) });
           }
           else {
             bot.reply(message, {
@@ -242,13 +244,11 @@ module.exports = (controller) => {
             });
           }
         }
-      }
-
-      // Collecting data from a user and pushing product to db
-      else if (message.postback.payload.startsWith('product?=')) {
-        const responseProduct = await bestBuy.getProductDetales(message.postback.payload.replace('product?=', ''));
-        if (responseProduct && responseProduct.data && responseProduct.data.error) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(responseProduct) });
+        break;
+      case 'product?':
+        const [error, responseProduct] = await to(bestBuy.getProductDetales(payload));
+        if (error) {
+          bot.reply(message, { text: errorHelpers.bestBuyError(error) });
         }
         else if (!responseProduct) {
           bot.reply(message, { text: 'No such product' });
@@ -266,8 +266,8 @@ module.exports = (controller) => {
             }
           });
         }
-      }
-      else if (message.postback.payload === process.env.SHARE_NUMBER) {
+        break;
+      case process.env.SHARE_NUMBER:
         bot.reply(message, {
           text: 'Share your phone number',
           quick_replies: [{
@@ -275,8 +275,11 @@ module.exports = (controller) => {
           }],
           payload: 'user_phone'
         });
+        break;
       }
     }
+
+    // Handels phone number, location and completing purchase process
     if (message.nlp && message.nlp.entities && message.nlp.entities.phone_number) {
       BOT_CONFIG.product.phone = message.text;
       BOT_CONFIG.product.userId = message.sender.id;
@@ -293,9 +296,9 @@ module.exports = (controller) => {
           if (response && response.attachments) {
             selfProduct.coordinates = response.attachments[0].payload.coordinates;
             selfProduct.timestamp = response.timestamp;
-            let savePurchase = await db.savePurchase(selfProduct);
-            if (savePurchase && savePurchase.code && savePurchase.errmsg) {
-              bot.reply(message, { text: errorHelpers.dbError(savePurchase) });
+            const [err, savePurchase] = await to(db.savePurchase(selfProduct));
+            if (err) {
+              bot.reply(message, { text: errorHelpers.dbError(err) });
             }
             else {
               convo.say('Our courier will contact you within 2 hours');
@@ -323,9 +326,9 @@ module.exports = (controller) => {
 
 ///// Referrals /////
 async function referrals(FBuser, bot, message, keyword) {
-  let referrals = await db.getReferrals(keyword === 'ref' ? message.referral.ref : message.sender.id);
-  if (referrals && referrals.code && referrals.errmsg) {
-    bot.reply(message, { text: errorHelpers.dbError(referrals) });
+  const [err, referrals] = await to(db.getReferrals(keyword === 'ref' ? message.referral.ref : message.sender.id));
+  if (err) {
+    bot.reply(message, { text: errorHelpers.dbError(err) });
   }
   else {
     let refCounter = referrals.referrals.length;
@@ -352,7 +355,7 @@ async function referrals(FBuser, bot, message, keyword) {
       else {
         bot.reply(message, {
           text: `Welcome back, ${FBuser.first_name}! Nice to see you again!`,
-          quick_replies: helpers.greetingMenue()
+          quick_replies: helpers.greetingMenu()
         });
       }
     }
@@ -361,9 +364,9 @@ async function referrals(FBuser, bot, message, keyword) {
 
 ///// Galery builder /////
 async function productGaleryBuilder(bot, message, keyword) {
-  let collection = await bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber);
-  if (collection && collection.data && collection.data.error) {
-    bot.reply(message, { text: errorHelpers.bestBuyError(collection) });
+  const [err, collection] = await to(bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber));
+  if (err) {
+    bot.reply(message, { text: errorHelpers.bestBuyError(err) });
   }
   else if (!collection.products.length) {
     bot.reply(message, { text: 'There are no products in this collection' });
@@ -384,9 +387,9 @@ async function productGaleryBuilder(bot, message, keyword) {
 
 ///// Catalog builder /////
 async function catalogBuilder(bot, message, pageNumber) {
-  let catalog = await bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber);
-  if (catalog && catalog.data && catalog.data.error) {
-    bot.reply(message, { text: errorHelpers.bestBuyError(catalog) });
+  const [err, catalog] = await to(bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber));
+  if (err) {
+    bot.reply(message, { text: errorHelpers.bestBuyError(err) });
   }
   else if (!catalog.categories.length) {
     bot.reply(message, { text: 'There are no categories in this catalogue' });
@@ -403,10 +406,10 @@ async function catalogBuilder(bot, message, pageNumber) {
 async function getMyPurchases(bot, message, offSet) {
   let prchOffset = 0 + offSet;
   let notNext = false;
-  let purchases = await db.getPurchases(message.sender.id, prchOffset);
+  const [err, purchases] = await to(db.getPurchases(message.sender.id, prchOffset));
   if (purchases.length < 8) notNext = true;
-  if (purchases && purchases.code && purchases.errmsg) {
-    bot.reply(message, { text: errorHelpers.dbError(purchases) });
+  if (err) {
+    bot.reply(message, { text: errorHelpers.dbError(err) });
   }
   else if (!purchases.length) {
     bot.reply(message, { text: 'You have no purchases yet' });
@@ -422,10 +425,10 @@ async function getMyPurchases(bot, message, offSet) {
 ///// Get favorites /////
 async function getMyFavorites(bot, message, pageNumber) {
   let notNext = false;
-  let list = await db.getFavorites(message.sender.id, pageNumber);
+  const [err, list] = await to(db.getFavorites(message.sender.id, pageNumber));
   if (list.length < 10) notNext = true;
-  if (list && list.code && list.errmsg) {
-    bot.reply(message, { text: errorHelpers.dbError(list) });
+  if (err) {
+    bot.reply(message, { text: errorHelpers.dbError(err) });
   }
   else if (!list.length) {
     bot.reply(message, { text: 'You have nothing in favorites yet' });
