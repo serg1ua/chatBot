@@ -1,4 +1,6 @@
-var request = require('request');
+const request = require('request');
+
+const logger = require('../../utils/logger');
 
 // Subscribe events
 function subscribe(controller) {
@@ -6,10 +8,9 @@ function subscribe(controller) {
     function (err, res, body) {
       if (err) {
         controller.log('Could not subscribe to page messages');
-      }
-      else {
+      } else {
         controller.log('Successfully subscribed to Facebook events:', body);
-        console.log('Botkit can now receive messages');
+        logger.info('Botkit can now receive messages');
 
         // start ticking to send conversation messages
         controller.startTicking();

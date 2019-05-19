@@ -6,7 +6,11 @@ class BestBuy {
 
   // Fetch categories catalog
   getCatalog(page) {
-    return bby.categories('', { show: 'all', page: page, pageSize: 8 });
+    return bby.categories('', {
+      show: 'all',
+      page: page,
+      pageSize: 8
+    });
   }
 
   // Fetch products
@@ -15,17 +19,25 @@ class BestBuy {
     if (keyword) {
       key = `search=${keyword}`;
     }
-    return bby.products(key, { show: 'all', page: page, pageSize: 10 });
+    return bby.products(key, {
+      show: 'all',
+      page: page,
+      pageSize: 10
+    });
   }
 
   // Fetch products from catalog
   getProductsFromCatalog(abcat) {
-    return bby.products(`categoryPath.id=${abcat}`, { show: 'all' });
+    return bby.products(`categoryPath.id=${abcat}`, {
+      show: 'all'
+    });
   }
 
   // Fetch product
   getProductDetales(sku) {
-    return bby.products(+sku, { show: 'all' });
+    return bby.products(+sku, {
+      show: 'all'
+    });
   }
 }
 

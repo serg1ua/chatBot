@@ -1,17 +1,17 @@
 const Botkit = require('botkit');
-const request = require('request');
 require('dotenv').config();
+
+const logger = require('./utils/logger');
 
 // Check access & verify tokens
 if (!process.env.ACCESS_TOKEN) {
-  console.log('Error: Specify a Facebook page_access_token in environment.');
+  logger.info('Error: Specify a Facebook page_access_token in environment.');
   process.exit(1);
-}
-else {
-  console.log("access_token is OK");
+} else {
+  logger.info("access_token is OK");
 }
 if (!process.env.VERIFY_TOKEN) {
-  console.log('Error: Specify a Facebook verify_token in environment.');
+  logger.info('Error: Specify a Facebook verify_token in environment.');
   process.exit(1);
 }
 
@@ -22,19 +22,16 @@ const controller = Botkit.facebookbot({
   require_delivery: true,
   access_token: process.env.ACCESS_TOKEN,
   verify_token: process.env.VERIFY_TOKEN,
-  // storage: db
 });
 
-const bot = controller.spawn({});
-
 // Set up an Express-powered webserver
-const webserver = require('./app.js')(controller);
+require('./app.js')(controller);
 
 // Subscribe events
-require('./app/controllers/subscribe_events')(controller);
+require('./app/controllers/bot.subscribe')(controller);
 
 // Thread setup
-require('./app/controllers/bot_setup')(controller);
+require('./app/controllers/bot.setup')(controller);
 
 // Routes setup
-require('./app/handlers/bot_handler')(controller);
+require('./app/handlers/conversations')(controller);

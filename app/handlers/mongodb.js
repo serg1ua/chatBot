@@ -1,9 +1,8 @@
-const Favorite = require('../models/models_favorites');
-const Purchase = require('../models/models_purchase');
-const User = require('../models/models_user');
+const Favorite = require('../models/favorites');
+const Purchase = require('../models/purchase');
+const User = require('../models/user');
 
 class DB {
-  constructor() {}
 
   // Checks if you already referral
   areYouReferralFirstTime(userId) {

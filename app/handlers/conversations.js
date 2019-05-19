@@ -1,10 +1,11 @@
+/* eslint-disable no-unused-vars */
 ///// Bot handlers /////
-
 const to = require('await-to-js').default;
-const BestBuy = require('./best_buy_handler');
-const DB = require('./db_handler');
-const Helpers = require('./bot_helper');
-const Errors = require('./error_helper');
+
+const BestBuy = require('./bestbuy');
+const DB = require('./mongodb');
+const Helpers = require('./helper');
+const Errors = require('./errors');
 
 const errorHelpers = new Errors();
 const helpers = new Helpers();
@@ -29,7 +30,6 @@ module.exports = (controller) => {
     // Fetch FB user info
     let [err, FBuser] = await to(bot.getMessageUser(message));
     if (err) {
-      console.log(err);
       FBuser = '';
     }
 
@@ -39,52 +39,54 @@ module.exports = (controller) => {
       // Referral users go here
       const [err, user] = await to(db.areYouReferralFirstTime(message.sender.id));
       if (err) {
-        bot.reply(message, { text: errorHelpers.dbError(err) });
-      }
-      else if (user) {
+        bot.reply(message, {
+          text: errorHelpers.dbError(err)
+        });
+      } else if (user) {
         bot.reply(message, {
           text: 'You are already registered!\nYou cannot use referral twice!',
           quick_replies: helpers.greetingMenu()
         });
-      }
-      else {
+      } else {
         const [err, newRefUser] = await to(db.saveNewUser(message.sender.id));
         if (err) {
-          bot.reply(message, { text: errorHelpers.dbError(err) });
-        }
-        else {
+          bot.reply(message, {
+            text: errorHelpers.dbError(err)
+          });
+        } else {
           const [err, pushToReferrals] = await to(db.pushToReferrals(message.referral.ref, message.sender.id));
           if (err) {
-            bot.reply(message, { text: errorHelpers.dbError(err) });
-          }
-          else {
+            bot.reply(message, {
+              text: errorHelpers.dbError(err)
+            });
+          } else {
 
             // Check how many referrals you involved
             referrals(FBuser, bot, message, 'ref');
           }
         }
       }
-    }
-    else {
+    } else {
 
       // New not referral users go here
       const [err, user] = await to(db.areYouReferralFirstTime(message.sender.id));
       if (err) {
-        bot.reply(message, { text: errorHelpers.dbError(err) });
-      }
-      else if (!user) {
+        bot.reply(message, {
+          text: errorHelpers.dbError(err)
+        });
+      } else if (!user) {
         const [err, newUser] = await to(db.saveNewUser(message.sender.id));
         if (err) {
-          bot.reply(message, { text: errorHelpers.dbError(err) });
-        }
-        else {
+          bot.reply(message, {
+            text: errorHelpers.dbError(err)
+          });
+        } else {
           bot.reply(message, {
             text: `Hi, ${FBuser.first_name}! Nice to see you!\nUse "Shop button" to browse all the products.\nUse "Send catalogue" to browse the categories.\nOr use "Send message" text area for search specific item`,
             quick_replies: helpers.greetingMenu()
           });
         }
-      }
-      else {
+      } else {
 
         // Check how many referrals you involved
         referrals(FBuser, bot, message, 'notRef');
@@ -103,24 +105,33 @@ module.exports = (controller) => {
     if (message.quick_reply) {
       const arg = message.quick_reply.payload;
       switch (arg) {
-      case 'my_purchases':
-        getMyPurchases(bot, message, 0);
-        break;
-      case 'favorites':
-        getMyFavorites(bot, message, 1);
-        break;
-      case 'invite':
-        controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
-          if (err) {
-            console.log(err);
-            return err;
-          }
-          else {
-            bot.reply(message, { text: `Send link or image to 3 friend, and get one product for free!` });
-            bot.reply(message, { text: `${process.env.BOT_URI}?ref=${message.sender.id}` });
-            bot.reply(message, { attachment: { 'type': 'image', 'payload': { url } } });
-          }
-        }, message.sender.id);
+        case 'my_purchases':
+          getMyPurchases(bot, message, 0);
+          break;
+        case 'favorites':
+          getMyFavorites(bot, message, 1);
+          break;
+        case 'invite':
+          controller.api.messenger_profile.get_messenger_code(2000, (err, url) => {
+            if (err) {
+              throw (err);
+            } else {
+              bot.reply(message, {
+                text: `Send link or image to 3 friend, and get one product for free!`
+              });
+              bot.reply(message, {
+                text: `${process.env.BOT_URI}?ref=${message.sender.id}`
+              });
+              bot.reply(message, {
+                attachment: {
+                  'type': 'image',
+                  'payload': {
+                    url
+                  }
+                }
+              });
+            }
+          }, message.sender.id);
       }
     }
   });
@@ -130,26 +141,25 @@ module.exports = (controller) => {
     if (message.quick_reply) {
       const [arg, page] = message.quick_reply.payload.split('=');
       switch (arg) {
-      case 'show_products&page?':
-        if (page === '0') {
-          BOT_CONFIG.keyword = null;
-          BOT_CONFIG.productsPageNumber = 1;
-        }
-        else {
-          BOT_CONFIG.productsPageNumber = +page;
-        }
-        productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
-        break;
-      case 'gotoCatalogPage':
-        BOT_CONFIG.catalogPageNumber = +page;
-        catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
-        break;
-      case 'prchOffset?':
-        getMyPurchases(bot, message, +page);
-        break;
-      case 'goToFavoritePage?':
-        getMyFavorites(bot, message, +page);
-        break;
+        case 'show_products&page?':
+          if (page === '0') {
+            BOT_CONFIG.keyword = null;
+            BOT_CONFIG.productsPageNumber = 1;
+          } else {
+            BOT_CONFIG.productsPageNumber = +page;
+          }
+          productGaleryBuilder(bot, message, BOT_CONFIG.keyword);
+          break;
+        case 'gotoCatalogPage':
+          BOT_CONFIG.catalogPageNumber = +page;
+          catalogBuilder(bot, message, BOT_CONFIG.catalogPageNumber);
+          break;
+        case 'prchOffset?':
+          getMyPurchases(bot, message, +page);
+          break;
+        case 'goToFavoritePage?':
+          getMyFavorites(bot, message, +page);
+          break;
       }
     }
   });
@@ -158,6 +168,7 @@ module.exports = (controller) => {
   controller.hears('(.*)', 'message_received', async(bot, message) => {
 
     // Search product by keyword from users input(text area, send message)
+    const userId = message.sender.id;
     if (!message.quick_reply && !message.postback && !message.attachments) {
       BOT_CONFIG.keyword = message.text;
       BOT_CONFIG.productsPageNumber = 1;
@@ -167,119 +178,129 @@ module.exports = (controller) => {
     // Handling all quick_replies
     if (message.quick_reply) {
       const [arg, payload] = message.quick_reply.payload.split('=');
+      let error, response;
       switch (arg) {
-      case 'product_in_purchased?':
-        const [error, responseProduct] = await to(bestBuy.getProductDetales(payload));
-        if (error) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(error) });
-        }
-        else {
-          bot.reply(message, {
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': helpers.createProductsGalery([responseProduct], true)
+        case 'product_in_purchased?':
+          [error, response] = await to(bestBuy.getProductDetales(payload));
+          if (error) {
+            bot.reply(message, {
+              text: errorHelpers.bestBuyError(error)
+            });
+          } else {
+            bot.reply(message, {
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': helpers.createProductsGalery([response], true)
+                }
               }
-            }
-          });
-        }
-        break;
-      case 'category?':
-        const [err, products] = await to(bestBuy.getProductsFromCatalog(payload));
-        if (err) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(err) });
-        }
-        else if (!products.products.length) {
-          bot.reply(message, {
-            text: 'This catalog is currently empty, please try another',
-          });
-        }
-        else {
-          bot.reply(message, {
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': helpers.createProductsGalery(products.products, false)
+            });
+          }
+          break;
+        case 'category?':
+          [error, response] = await to(bestBuy.getProductsFromCatalog(payload));
+          if (error) {
+            bot.reply(message, {
+              text: errorHelpers.bestBuyError(error)
+            });
+          } else if (!response.products.length) {
+            bot.reply(message, {
+              text: 'This catalog is currently empty, please try another',
+            });
+          } else {
+            bot.reply(message, {
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': helpers.createProductsGalery(response.products, false)
+                }
               }
-            }
+            });
+          }
+          break;
+        case 'rate?':
+          bot.reply(message, {
+            text: 'Thank you!'
           });
-        }
-        break;
-      case 'rate?':
-        bot.reply(message, { text: 'Thank you!' });
       }
     }
 
     // Handling all postback buttons
     if (message.postback) {
       const [arg, payload] = message.postback.payload.split('=');
+      let error, response;
       switch (arg) {
-      case 'favorite':
-        const userId = message.sender.id;
-        let [err, favorite] = await to(db.checkFavorite(userId, payload));
-        if (err) {
-          bot.reply(message, { text: errorHelpers.dbError(err) });
-        }
-        else if (favorite) {
-          bot.reply(message, {
-            text: `"${favorite.name}"\nis already in favorite list`,
-            quick_replies: [{
-              'content_type': 'text',
-              'title': 'Show favorites',
-              'payload': 'favorites'
-            }]
-          });
-        }
-        else if (!favorite) {
-          [err, favorite] = await to(db.addNewFavorite(userId, payload, message.timestamp));
-          if (err) {
-            bot.reply(message, { text: errorHelpers.dbError(err) });
-          }
-          else {
+        case 'favorite':
+          [error, response] = await to(db.checkFavorite(userId, payload));
+          if (error) {
             bot.reply(message, {
-              text: 'Added to favorites',
-              quick_replies: [{
-                'content_type': 'text',
-                'title': 'Show favorites',
-                'payload': 'favorites'
+              text: errorHelpers.dbError(error)
+            });
+          } else if (response) {
+            bot.reply(message, {
+              text: `"${response.name}"\nis already in favorite list`,
+              quick_replies: [
+                {
+                  'content_type': 'text',
+                  'title': 'Show favorites',
+                  'payload': 'favorites'
               }]
             });
-          }
-        }
-        break;
-      case 'product?':
-        const [error, responseProduct] = await to(bestBuy.getProductDetales(payload));
-        if (error) {
-          bot.reply(message, { text: errorHelpers.bestBuyError(error) });
-        }
-        else if (!responseProduct) {
-          bot.reply(message, { text: 'No such product' });
-        }
-        else {
-          BOT_CONFIG.product.sku = responseProduct.sku;
-          BOT_CONFIG.product.userId = message.sender.id;
-          bot.reply(message, {
-            attachment: {
-              'type': 'template',
-              'payload': {
-                'template_type': 'generic',
-                'elements': helpers.createProductsGalery([responseProduct], false)
-              }
+          } else if (!response) {
+            [error, response] = await to(db.addNewFavorite(userId, payload, message.timestamp));
+            if (error) {
+              bot.reply(message, {
+                text: errorHelpers.dbError(error)
+              });
+            } else {
+              bot.reply(message, {
+                text: 'Added to favorites',
+                quick_replies: [
+                  {
+                    'content_type': 'text',
+                    'title': 'Show favorites',
+                    'payload': 'favorites'
+                }]
+              });
             }
+          }
+          break;
+        case 'product?':
+          [error, response] = await to(bestBuy.getProductDetales(payload));
+          if (error) {
+            bot.reply(message, {
+              text: errorHelpers.bestBuyError(error)
+            });
+          } else if (!response) {
+            bot.reply(message, {
+              text: 'No such product'
+            });
+          } else {
+            BOT_CONFIG.product.sku = response.sku;
+            BOT_CONFIG.product.userId = message.sender.id;
+            bot.reply(message, {
+              attachment: {
+                'type': 'template',
+                'payload': {
+                  'template_type': 'generic',
+                  'elements': helpers.createProductsGalery([response], false)
+                }
+              }
+            });
+          }
+          break;
+        case process.env.SHARE_NUMBER:
+          bot.reply(message, {
+            text: 'Share your phone number',
+            quick_replies: [
+              {
+                'content_type': 'user_phone_number'
+            }],
+            payload: 'user_phone'
           });
-        }
-        break;
-      case process.env.SHARE_NUMBER:
-        bot.reply(message, {
-          text: 'Share your phone number',
-          quick_replies: [{
-            'content_type': 'user_phone_number'
-          }],
-          payload: 'user_phone'
-        });
-        break;
+          break;
       }
     }
 
@@ -288,23 +309,24 @@ module.exports = (controller) => {
       BOT_CONFIG.product.phone = message.text;
       BOT_CONFIG.product.userId = message.sender.id;
       bot.startConversation(message, (err, convo) => {
-        const selfProduct = BOT_CONFIG.product;
-        const db = new DB();
+        if (err) throw err;
         convo.ask({
           text: 'Share your location',
-          quick_replies: [{
-            'content_type': 'location'
+          quick_replies: [
+            {
+              'content_type': 'location'
           }],
           payload: 'location'
         }, async(response, convo) => {
           if (response && response.attachments) {
-            selfProduct.coordinates = response.attachments[0].payload.coordinates;
-            selfProduct.timestamp = response.timestamp;
-            const [err, savePurchase] = await to(db.savePurchase(selfProduct));
+            BOT_CONFIG.product.coordinates = response.attachments[0].payload.coordinates;
+            BOT_CONFIG.product.timestamp = response.timestamp;
+            const [err, savePurchase] = await to(db.savePurchase(BOT_CONFIG.product));
             if (err) {
-              bot.reply(message, { text: errorHelpers.dbError(err) });
-            }
-            else {
+              bot.reply(message, {
+                text: errorHelpers.dbError(err)
+              });
+            } else {
               convo.say('Our courier will contact you within 2 hours');
 
               // Mock 2 days, but not really
@@ -316,8 +338,7 @@ module.exports = (controller) => {
               }, 5000);
               convo.next();
             }
-          }
-          else {
+          } else {
             convo.next();
           }
         });
@@ -332,9 +353,10 @@ module.exports = (controller) => {
 async function referrals(FBuser, bot, message, keyword) {
   const [err, referrals] = await to(db.getReferrals(keyword === 'ref' ? message.referral.ref : message.sender.id));
   if (err) {
-    bot.reply(message, { text: errorHelpers.dbError(err) });
-  }
-  else {
+    bot.reply(message, {
+      text: errorHelpers.dbError(err)
+    });
+  } else {
     let refCounter = referrals.referrals.length;
     if (keyword === 'ref') {
       if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
@@ -347,16 +369,14 @@ async function referrals(FBuser, bot, message, keyword) {
       bot.reply(message, {
         attachment: helpers.congrats(`Hi, ${FBuser.first_name}, congrats! You have activated promo link. Get some bonuses!`)
       });
-    }
-    else {
+    } else {
       if (refCounter % 3 !== 0) BOT_CONFIG.dismiss = true;
       if (refCounter !== 0 && refCounter % 3 === 0 && BOT_CONFIG.dismiss) {
         BOT_CONFIG.dismiss = false;
         bot.reply(message, {
           attachment: helpers.congrats(`Congratulations, ${FBuser.first_name}, you have involved 3 new user. Get a product for free!`)
         });
-      }
-      else {
+      } else {
         bot.reply(message, {
           text: `Welcome back, ${FBuser.first_name}! Nice to see you again!`,
           quick_replies: helpers.greetingMenu()
@@ -370,12 +390,14 @@ async function referrals(FBuser, bot, message, keyword) {
 async function productGaleryBuilder(bot, message, keyword) {
   const [err, collection] = await to(bestBuy.getProducts(keyword, BOT_CONFIG.productsPageNumber));
   if (err) {
-    bot.reply(message, { text: errorHelpers.bestBuyError(err) });
-  }
-  else if (!collection.products.length) {
-    bot.reply(message, { text: 'There are no products in this collection' });
-  }
-  else {
+    bot.reply(message, {
+      text: errorHelpers.bestBuyError(err)
+    });
+  } else if (!collection.products.length) {
+    bot.reply(message, {
+      text: 'There are no products in this collection'
+    });
+  } else {
     bot.reply(message, {
       attachment: {
         'type': 'template',
@@ -393,12 +415,14 @@ async function productGaleryBuilder(bot, message, keyword) {
 async function catalogBuilder(bot, message, pageNumber) {
   const [err, catalog] = await to(bestBuy.getCatalog(BOT_CONFIG.catalogPageNumber));
   if (err) {
-    bot.reply(message, { text: errorHelpers.bestBuyError(err) });
-  }
-  else if (!catalog.categories.length) {
-    bot.reply(message, { text: 'There are no categories in this catalogue' });
-  }
-  else {
+    bot.reply(message, {
+      text: errorHelpers.bestBuyError(err)
+    });
+  } else if (!catalog.categories.length) {
+    bot.reply(message, {
+      text: 'There are no categories in this catalogue'
+    });
+  } else {
     bot.reply(message, {
       text: 'Send catalogue',
       quick_replies: helpers.quickRepliesBuilder(catalog.categories, pageNumber, 'catalog', false)
@@ -413,12 +437,14 @@ async function getMyPurchases(bot, message, offSet) {
   const [err, purchases] = await to(db.getPurchases(message.sender.id, prchOffset));
   if (purchases.length < 8) notNext = true;
   if (err) {
-    bot.reply(message, { text: errorHelpers.dbError(err) });
-  }
-  else if (!purchases.length) {
-    bot.reply(message, { text: 'You have no purchases yet' });
-  }
-  else {
+    bot.reply(message, {
+      text: errorHelpers.dbError(err)
+    });
+  } else if (!purchases.length) {
+    bot.reply(message, {
+      text: 'You have no purchases yet'
+    });
+  } else {
     bot.reply(message, {
       text: 'Purchases list',
       quick_replies: helpers.getMyPurchases(purchases, prchOffset, notNext)
@@ -432,12 +458,14 @@ async function getMyFavorites(bot, message, pageNumber) {
   const [err, list] = await to(db.getFavorites(message.sender.id, pageNumber));
   if (list.length < 10) notNext = true;
   if (err) {
-    bot.reply(message, { text: errorHelpers.dbError(err) });
-  }
-  else if (!list.length) {
-    bot.reply(message, { text: 'You have nothing in favorites yet' });
-  }
-  else {
+    bot.reply(message, {
+      text: errorHelpers.dbError(err)
+    });
+  } else if (!list.length) {
+    bot.reply(message, {
+      text: 'You have nothing in favorites yet'
+    });
+  } else {
     bot.reply(message, {
       attachment: {
         'type': 'template',

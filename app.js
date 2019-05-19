@@ -1,28 +1,31 @@
 const express = require('express');
 const mongoose = require('mongoose');
+const schedule = require('node-schedule');
+const https = require('https');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
 require('dotenv').config();
 
-const test = require('./app/route');
+const index = require('./app/route');
+const logger = require('./utils/logger');
 
-mongoose.connect(process.env.MONGO_DB_URI, { useNewUrlParser: true });
-const db = mongoose.connection;
-db.on('error', console.error.bind(this, 'connection error:'));
-db.once('open', () => {
-  console.log('successfully connected to DB');
+mongoose.connect(process.env.MONGO_DB_URI, {
+  useNewUrlParser: true
 });
+const db = mongoose.connection;
+db.on('error', error => logger.error(error.name));
+db.once('open', () => logger.info('connected to mongoDB'));
 
 function webserver(controller) {
 
   // Create express server
   const app = express();
 
-  // Seting middleware
-  app.use(logger('dev'));
+  // Setting middleware
   app.use(express.json());
-  app.use(express.urlencoded({ extended: false }));
+  app.use(express.urlencoded({
+    extended: false
+  }));
   app.use(cookieParser());
   app.use(express.static(path.join(__dirname, 'public')));
 
@@ -31,10 +34,21 @@ function webserver(controller) {
   app.set('view engine', 'ejs');
 
   // test
-  app.use('/', test);
+  app.use('/', index);
+
+  // Make heroku app no sleep sending request every 15 minutes
+  (function () {
+    schedule.scheduleJob('*/15 * * * *', () => {
+      https.get('https://chat-bot-ua.herokuapp.com/', () => {
+        logger.info('chat bot is online');
+      }).on('error', (err) => {
+        logger.error(`Error: ${err.message}`);
+      });
+    });
+  })();
 
   const listener = app.listen(process.env.PORT || 3000, () => {
-    console.log('Your app is listening on port ' + listener.address().port);
+    logger.info(`Your app is listening on port ${listener.address().port} in ${process.env.NODE_ENV}`);
   });
 
   // import all the pre-defined routes that are present in /components/routes
