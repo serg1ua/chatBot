@@ -1,4 +1,4 @@
-const winston = require("winston");
+const winston = require('winston');
 
 const { createLogger, format, transports } = winston;
 const { combine, colorize, simple } = format;

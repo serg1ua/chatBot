@@ -4,15 +4,13 @@ require('dotenv').config();
 const logger = require('../../utils/logger');
 
 function webhooks(app, controller) {
-
   app.get('/webhook', (req, res) => {
     logger.info('WEBHOOK_VERIFIED');
-    if (req.query['hub.mode'] == 'subscribe') {
-      if (req.query['hub.verify_token'] == process.env.VERIFY_TOKEN) {
+    if (req.query['hub.mode'] === 'subscribe') {
+      if (req.query['hub.verify_token'] === process.env.VERIFY_TOKEN) {
         logger.info('WEBHOOK_VERIFIED');
         res.send(req.query['hub.challenge']);
-      }
-      else {
+      } else {
         res.send('OK');
       }
     }

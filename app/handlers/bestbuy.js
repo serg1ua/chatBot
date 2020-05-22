@@ -3,7 +3,6 @@ const bby = require('bestbuy')(process.env.BEST_BUY_API_KEY);
 require('dotenv').config();
 
 class BestBuy {
-
   // Fetch categories catalog
   getCatalog(page) {
     return bby.categories('', {

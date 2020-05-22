@@ -3,10 +3,9 @@ const Purchase = require('../models/purchase');
 const User = require('../models/user');
 
 class DB {
-
   // Checks if you already referral
   areYouReferralFirstTime(userId) {
-    return User.findOne({ 'userId': userId });
+    return User.findOne({ userId: userId });
   }
 
   // Save new user
@@ -19,18 +18,18 @@ class DB {
 
   // Save to referrals
   pushToReferrals(refEmitterId, newUserId) {
-    return User.updateOne({ 'userId': refEmitterId }, { $addToSet: { 'referrals': newUserId } });
+    return User.updateOne({ userId: refEmitterId }, { $addToSet: { referrals: newUserId } });
   }
 
   // Get referral users
   getReferrals(userId) {
-    return User.findOne({ 'userId': userId }, { 'referrals': 1 });
+    return User.findOne({ userId: userId }, { referrals: 1 });
   }
 
   // Check if product exists in favorites
   checkFavorite(userId, item) {
     const sku = item.split('&')[0];
-    return Favorite.findOne({ 'userId': userId, 'sku': sku });
+    return Favorite.findOne({ userId: userId, sku: sku });
   }
 
   // Add new product to favorites
@@ -47,7 +46,7 @@ class DB {
 
   // Fetch list of favoretes from DB
   getFavorites(userId, pageNumber) {
-    return Favorite.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip((pageNumber - 1) * 10).limit(10);
+    return Favorite.find({ userId: userId }).sort({ timestamp: 'desc' }).skip((pageNumber - 1) * 10).limit(10);
   }
 
   // Save purchased
@@ -63,7 +62,7 @@ class DB {
 
   // Fetch purchases
   getPurchases(userId, prchOffset) {
-    return Purchase.find({ 'userId': userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8);
+    return Purchase.find({ userId: userId }).sort({ timestamp: 'desc' }).skip(prchOffset).limit(8);
   }
 }
 

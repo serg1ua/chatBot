@@ -1,8 +1,6 @@
-///// Error helper class /////
 const logger = require('../../utils/logger');
 
 class ErrorHelpers {
-
   // Db error helper
   dbError(error) {
     logger.info(error);
