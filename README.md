@@ -1,12 +1,12 @@
 # Botkit server for Facebook Messenger, using Express, Mongo and BotKit
 
 This app is a demo of using [Botkit](https://github.com/howdyai/botkit) to create a Facebook Messenger bot,
-using the MongoDB [adapter](https://github.com/howdyai/botkit-storage-mongo) for storage and 
+using the MongoDB [adapter](https://github.com/howdyai/botkit-storage-mongo) for storage and
 [Express](http://expressjs.com) to serve webpages.
 
 ## Configuration
 
-* For local deployment
+#### For local deployment
 
 1) Create a Facebook page. Add Page ID in .env file (rename the .env-demo file)
 
@@ -18,13 +18,14 @@ using the MongoDB [adapter](https://github.com/howdyai/botkit-storage-mongo) for
 
 5) Add Webhooks to your app
 
-5.1) Choose a verify token, add it to the .env file as well
+6) Choose a verify token, add it to the .env file as well
 
-5.2) Set the app webhook url to https://yourappname.localtunnel.me/webhook
+7) Set the app webhook url to https://yourappname.localtunnel.me/webhook
 
-5.3) Restart your server and click verify
+7) Restart your server and click verify
 
-* For Heroku deployment
+#### For Heroku deployment
 
-Add Page ID, App ID, and token as environement variables.
-Change the webhook route to match your deployed domain name.
+1) Add Page ID, App ID, and token as environement variables.
+
+2) Change the webhook route to match your deployed domain name.
